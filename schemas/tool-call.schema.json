@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agente-atendimento-geral/schemas/tool-call.schema.json",
+  "title": "ToolCall",
+  "description": "Contrato universal de chamada de ferramenta pelo Agent Orchestrator. Toda tool call é validada contra este schema (e contra o schema específico de `arguments` da ação) antes de ser executada — o LLM nunca tem acesso irrestrito às APIs externas (Seção 13).",
+  "type": "object",
+  "required": ["tool", "action", "arguments"],
+  "additionalProperties": false,
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["crm", "calendar", "knowledge", "files", "handoff", "tasks"]
+    },
+    "action": { "type": "string" },
+    "arguments": { "type": "object" }
+  },
+  "examples": [
+    {
+      "tool": "crm",
+      "action": "move_stage",
+      "arguments": { "status": "QUALIFIED" }
+    },
+    {
+      "tool": "handoff",
+      "action": "request",
+      "arguments": {
+        "reason": "customer_requested_human",
+        "priority": "normal",
+        "summary": "Cliente pediu atendimento humano"
+      }
+    }
+  ]
+}

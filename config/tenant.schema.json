@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agente-atendimento-geral/config/tenant.schema.json",
+  "title": "TenantConfig",
+  "description": "Configuração empresarial de um tenant (Seção 6). Nunca contém conhecimento de negócio (FAQs, preços, produtos, serviços, profissionais, políticas) — isso vive em knowledge_documents (ver database/migrations/0004_knowledge.sql).",
+  "type": "object",
+  "required": ["tenant_id", "enabled", "company", "agent", "crm", "llm", "features", "buffer"],
+  "additionalProperties": false,
+  "properties": {
+    "tenant_id": { "type": "string" },
+    "enabled": { "type": "boolean" },
+    "company": {
+      "type": "object",
+      "required": ["name", "timezone", "language"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "timezone": { "type": "string" },
+        "language": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["name", "type", "enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["general", "sales", "secretary", "internal"] },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "crm": {
+      "type": "object",
+      "required": ["provider"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "enum": ["chatwoot", "kommo", "datacry"] }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "required": ["profile", "fallback_enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "profile": { "type": "string", "enum": ["fast", "balanced", "advanced"] },
+        "fallback_enabled": { "type": "boolean" }
+      }
+    },
+    "features": {
+      "type": "object",
+      "required": ["audio", "vision", "calendar", "knowledge", "files", "followup", "human_handoff"],
+      "additionalProperties": false,
+      "properties": {
+        "audio": { "type": "boolean" },
+        "vision": { "type": "boolean" },
+        "calendar": { "type": "boolean" },
+        "knowledge": { "type": "boolean" },
+        "files": { "type": "boolean" },
+        "followup": { "type": "boolean" },
+        "human_handoff": { "type": "boolean" }
+      }
+    },
+    "buffer": {
+      "type": "object",
+      "required": ["enabled", "seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "seconds": { "type": "integer", "minimum": 1, "maximum": 30 }
+      }
+    },
+    "calendars": {
+      "type": "array",
+      "description": "Ver Seção 14. IDs de agenda ficam aqui, nunca hardcoded no prompt do agente.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "provider", "external_calendar_id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "specialty": { "type": "string" },
+          "provider": { "type": "string", "enum": ["google_calendar"] },
+          "external_calendar_id": { "type": "string" }
+        }
+      }
+    }
+  }
+}

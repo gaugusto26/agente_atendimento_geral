@@ -1,0 +1,43 @@
+{
+  "tenant_id": "tenant_example",
+  "enabled": true,
+  "company": {
+    "name": "Empresa Exemplo",
+    "timezone": "America/Sao_Paulo",
+    "language": "pt-BR"
+  },
+  "agent": {
+    "name": "Assistente",
+    "type": "secretary",
+    "enabled": true
+  },
+  "crm": {
+    "provider": "chatwoot"
+  },
+  "llm": {
+    "profile": "balanced",
+    "fallback_enabled": true
+  },
+  "features": {
+    "audio": true,
+    "vision": false,
+    "calendar": true,
+    "knowledge": true,
+    "files": true,
+    "followup": true,
+    "human_handoff": true
+  },
+  "buffer": {
+    "enabled": true,
+    "seconds": 4
+  },
+  "calendars": [
+    {
+      "id": "example_professional",
+      "name": "Profissional Exemplo",
+      "specialty": "Especialidade Exemplo",
+      "provider": "google_calendar",
+      "external_calendar_id": "SET_VIA_ENV_OR_SECRET_MANAGER"
+    }
+  ]
+}

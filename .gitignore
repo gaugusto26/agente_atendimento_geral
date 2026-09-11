@@ -1,0 +1,33 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+
+# Logs e temporários
+*.log
+*.tmp
+*.bak
+
+# Segredos / ambiente
+.env
+.env.*
+!.env.example
+*.local
+
+# Backups de export n8n (podem conter credenciais)
+*.n8n.backup.json
+
+# Node (scripts utilitários, se houver)
+node_modules/
+npm-debug.log*
+
+# Python (scripts utilitários, se houver)
+__pycache__/
+*.py[cod]
+
+# Arquivos de conflito git não resolvidos
+*.orig

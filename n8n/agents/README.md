@@ -1,0 +1,1 @@
+Definições de agente (prompt + tools habilitadas) por tipo: general, sales, secretary, internal. Prompt descreve comportamento/papel — dados de negócio (nome da empresa, preços, políticas) vêm de `knowledge_documents` e `config/tenant.*.json`, nunca hardcoded no texto do prompt (ver `docs/DECISIONS.md#d004`).

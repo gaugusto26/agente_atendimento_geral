@@ -1,0 +1,1 @@
+CRM-00 Router + adapters (Kommo, Chatwoot, DataCry). Ver `../README.md` e `schemas/crm-action.schema.json`. Chatwoot é o primeiro adapter (Fase 2); DataCry fica como stub até haver documentação da API (Fase 7).

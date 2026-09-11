@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agente-atendimento-geral/schemas/universal-message.schema.json",
+  "title": "UniversalMessage",
+  "description": "Formato normalizado para o qual todo payload de canal/CRM (Chatwoot, Kommo, DataCry, Meta, ...) é convertido pelo Inbound Gateway. Nenhum componente além do respectivo adapter de canal deve ler o payload nativo do provider.",
+  "type": "object",
+  "required": ["tenant_id", "source", "contact", "conversation", "message"],
+  "additionalProperties": false,
+  "properties": {
+    "tenant_id": { "type": "string" },
+    "source": {
+      "type": "object",
+      "required": ["provider", "channel"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "enum": ["chatwoot", "kommo", "datacry"] },
+        "channel": { "type": "string", "enum": ["whatsapp", "instagram", "facebook", "webchat", "telegram"] },
+        "account_id": { "type": "string" },
+        "inbox_id": { "type": "string" }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "required": ["external_id"],
+      "additionalProperties": false,
+      "properties": {
+        "external_id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" }
+      }
+    },
+    "conversation": {
+      "type": "object",
+      "required": ["external_id"],
+      "additionalProperties": false,
+      "properties": {
+        "external_id": { "type": "string" }
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["id", "direction", "type", "timestamp"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "direction": { "type": "string", "enum": ["incoming", "outgoing"] },
+        "type": { "type": "string", "enum": ["text", "audio", "image", "video", "file", "location"] },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "attachments": { "type": "array", "items": { "type": "object" } }
+      }
+    }
+  }
+}

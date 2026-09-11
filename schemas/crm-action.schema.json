@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agente-atendimento-geral/schemas/crm-action.schema.json",
+  "title": "CrmActionRequest / CrmActionResponse",
+  "description": "Contrato universal do CRM Router (Seção 9). O Agent Core nunca fala diretamente com Kommo/Chatwoot/DataCry — sempre através deste contrato, traduzido por cada CrmAdapter.",
+  "definitions": {
+    "request": {
+      "type": "object",
+      "required": ["tenant_id", "action", "context"],
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "action": {
+          "type": "string",
+          "enum": [
+            "get_contact", "get_conversation", "get_lead",
+            "create_contact", "create_lead",
+            "update_contact", "update_lead",
+            "move_stage", "add_note", "add_tag", "assign_user", "create_task",
+            "handoff"
+          ]
+        },
+        "context": { "type": "object" }
+      }
+    },
+    "response": {
+      "type": "object",
+      "required": ["success", "provider", "action", "data", "error"],
+      "additionalProperties": false,
+      "properties": {
+        "success": { "type": "boolean" },
+        "provider": { "type": "string", "enum": ["chatwoot", "kommo", "datacry"] },
+        "action": { "type": "string" },
+        "data": { "type": ["object", "null"] },
+        "error": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "examples": [
+    {
+      "tenant_id": "clinica_x",
+      "action": "get_contact",
+      "context": { "phone": "<tenant-provided>", "conversation_id": "12891" }
+    },
+    {
+      "success": true,
+      "provider": "chatwoot",
+      "action": "get_contact",
+      "data": {},
+      "error": null
+    }
+  ]
+}
