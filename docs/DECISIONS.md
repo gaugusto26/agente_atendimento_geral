@@ -78,3 +78,26 @@ que eu preparo.
 **Consequência**: nenhum workflow `.json` existe ainda neste repositório —
 apenas READMEs de convenção em `/n8n/*`. Isso é intencional, não um item
 esquecido.
+
+---
+
+## D014 — Modelo de custo de IA: BYOK (cada tenant usa sua própria chave)
+
+**Contexto**: a plataforma precisa decidir quem paga pelo uso de LLM de
+cada tenant. Três modelos foram considerados: (1) BYOK — tenant cadastra
+sua própria chave de API e paga o provider diretamente; (2) a plataforma é
+dona das chaves e repassa o custo com markup, exigindo cobrança recorrente,
+gestão de inadimplência e quotas de gasto por tenant; (3) créditos
+pré-pagos, um meio-termo que ainda exige checkout mas evita inadimplência.
+
+**Decisão**: adotar **BYOK** por enquanto. Cada tenant fornece sua própria
+chave de API (`tenant_llm_config`/credencial no n8n), e a plataforma nunca
+paga por uso de LLM de terceiro. `llm_calls.cost_estimated` continua sendo
+gravado normalmente — serve para **visibilidade** de custo por tenant, não
+para cobrança.
+
+**Consequência**: nenhuma tabela de `usage`/`billing` nem integração de
+pagamento (Stripe/Mercado Pago/etc.) é necessária nesta fase — o schema
+atual (`llm_calls`) já é suficiente. Se o modelo mudar no futuro para (2)
+ou (3), a mudança é aditiva (novas tabelas + um job de agregação de uso por
+período), sem alterar o que já existe.
