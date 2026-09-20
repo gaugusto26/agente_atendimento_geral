@@ -254,6 +254,18 @@ substitui esta consulta por uma busca vetorial real, sem mudar o schema.
 Publicado e validado em produção (`activeVersionId
 df29bf8f-ee25-4f3f-b7c9-1209b2572650`).
 
+**Atualização (2026-09-20)**: o tenant `golden_ouro_prata` passou de duas
+linhas resumidas (COMPANY + POLICY, escritas por mim durante o
+onboarding) para um único documento completo de ~460 linhas — um roteiro
+de SDR fornecido pelo usuário (`n8n/agents/golden-ouro-prata-sdr.md`),
+com identidade, tom de voz, qualificação comercial, tratamento de
+objeções, regras de preço/avaliação e exemplo de conversa. Isso confirma
+que o design de D020 suporta bem conteúdo extenso e estruturado, não só
+regras curtas — o limite prático é o tamanho do prompt do LLM, não o
+schema. Inserção feita via workflow utilitário temporário (Code node
+decodificando Base64, para evitar problemas de escaping de aspas do
+texto original em JSON) — workflow arquivado depois de usado.
+
 ---
 
 ## D021 — Pausa automática de 30 minutos quando um humano responde manualmente pelo Chatwoot

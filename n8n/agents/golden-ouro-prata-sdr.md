@@ -1,12 +1,13 @@
 # Agente SDR — Golden Compra de Ouro & Prata
 
-> **Status: PRONTO PARA ATIVAR** — todos os campos confirmados com o usuário
-> em 2026-09-20. Próximo passo: substituir as 2 linhas antigas de
-> `knowledge_documents` do tenant `golden_ouro_prata` (COMPANY + POLICY
-> resumidas, cadastradas na sessão de onboarding) por este texto completo,
-> como entrada única — ver `docs/DECISIONS.md#d020`. Depende de o tenant já
-> existir no banco (confirmar) e, antes de qualquer tráfego real, de
-> `tenant_channels` estar configurado (mensagem de teste do número novo).
+> **Status: ATIVO** — inserido em `knowledge_documents` do tenant
+> `golden_ouro_prata` (`7f3a1c20-19e2-4b8b-9d5a-2b6e4a10f001`) em
+> 2026-09-20, substituindo as 2 linhas resumidas anteriores. Linha atual:
+> id `7d48c97b-7579-43a3-bfe2-285a0006ce41`, categoria `POLICY`, título
+> "Agente SDR completo". Ainda falta configurar `tenant_channels` (canal
+> de WhatsApp) antes de qualquer tráfego real chegar a esse tenant —
+> depende de uma mensagem de teste do número novo para extrair
+> `account_id`/`inbox_id`.
 >
 > Checklist (todos confirmados):
 > - [x] Nome da assistente — Clara
