@@ -133,6 +133,15 @@ uso real no mesmo dia (ver D020/D021 em `DECISIONS.md`):
 Ambas publicadas e ativas; pausa automática ainda sem teste com resposta
 humana real de ponta a ponta (próximo passo).
 
+- **Exclusão de grupos do foco do agente (D022)** — incidente real:
+  o WhatsApp de um tenant também está em grupos pessoais do usuário, e o
+  agente respondeu automaticamente dentro de um grupo. `CORE-00` agora
+  detecta conversa de grupo (`identifier` do Chatwoot terminando em
+  `@g.us`, convenção de JID do WhatsApp) logo após extrair os campos do
+  webhook, antes de resolver tenant, e ignora a mensagem por completo
+  (`{ignored:true, reason:"group_conversation"}"`) sem persistir nada nem
+  acionar o agente. Vale para todos os tenants automaticamente.
+
 ## 5. Próximas fases (não iniciadas)
 
 - **Fase 3 — Human Handoff**: `handoff.request`, tradução por CRM Adapter
@@ -174,5 +183,9 @@ HMAC do webhook do Chatwoot.
 - **Pausa automática (D021) ainda sem teste de ponta a ponta** com uma
   resposta humana manual real — lógica publicada, mas não exercitada em
   produção ainda.
+- **Incidente de grupo (D022) exigiu desativar manualmente todos os
+  workflows do Core** — todos foram republicados após a correção; serve
+  de lembrete que não existe hoje um "kill switch" granular (ex.: pausar
+  só um tenant, ou só respostas em grupo) sem desligar tudo.
 - Demais riscos herdados do repositório de referência (arquivos legados
   quebrados, DataCry sem documentação de API) continuam válidos.

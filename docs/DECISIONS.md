@@ -290,3 +290,45 @@ workflows publicados e ativos (`tl22TbmEhvxqjpE6` versão
 `562b88f9-f543-4572-a75b-88bdfa9f89ed`; `uBQGxhCMBQEasbLa` versão
 `26bfc9da-97de-4c48-a0c4-36b3b0a8fabf`). Ainda não testado com uma resposta
 humana real — próximo passo de validação.
+
+---
+
+## D022 — Conversas de grupo excluídas do foco do agente
+
+**Contexto**: incidente em produção no mesmo dia — o número de WhatsApp
+usado como canal de um tenant também está adicionado a grupos pessoais do
+usuário. Como o Chatwoot trata mensagens de grupo com o mesmo tipo de
+evento de webhook (`message_created`/`message_updated`) que conversas
+individuais, e o `CORE-00` processava qualquer mensagem do inbox
+configurado, o agente respondeu automaticamente dentro de grupos reais
+(ex.: "Canal O Tech Lead - Geral"), lendo e respondendo mensagens de
+terceiros sem contexto — experiência ruim e potencial vazamento de
+comportamento do agente fora do escopo 1:1 esperado.
+
+**Decisão**: `CORE-00 Inbound Gateway` agora identifica conversa de grupo
+logo após "Extrair campos Chatwoot" (antes de qualquer resolução de
+tenant), usando a convenção de JID do WhatsApp: o campo
+`conversation.meta.sender.identifier` do payload do Chatwoot termina em
+`@g.us` para grupos e em `@s.whatsapp.net` para contatos individuais. Um
+novo campo booleano `is_group` é extraído
+(`({{ $json.body?.conversation?.meta?.sender?.identifier || "" }}).endsWith("@g.us")`)
+e um nó IF ("É grupo?") logo em seguida decide: se for grupo, responde
+`{ignored: true, reason: "group_conversation"}` imediatamente, sem
+resolver tenant, sem persistir nada, sem acionar o buffer ou o agente. Se
+não for grupo, o fluxo segue normalmente (incoming e outgoing).
+
+**Consequência**: o agente nunca mais processa mensagens de grupo, em
+nenhum tenant — a checagem é genérica (baseada no formato do JID do
+WhatsApp via Chatwoot), não específica de um tenant, então protege todos
+os tenants atuais e futuros automaticamente. Filtro aplicado antes de
+qualquer chamada de banco ou sub-workflow, então também é a checagem mais
+barata do pipeline. `tl22TbmEhvxqjpE6` publicado e ativo (versão
+`e88e7d8b-0517-420d-8721-eda797903b25`).
+
+**Nota operacional**: durante o incidente, o usuário desativou manualmente
+todos os workflows do Core (`CORE-00`, `CORE-01`, `CORE-02`, `CORE-10`,
+`CORE-30`) para estancar o problema. Todos foram republicados nesta
+correção, na ordem de dependência (sub-workflows antes de quem os chama),
+já que `publish_workflow` recusa publicar um workflow cujos
+sub-workflows referenciados (via Execute Workflow) não estejam
+publicados.
