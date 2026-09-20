@@ -222,3 +222,71 @@ em texto no workflow) logo após o Webhook, respondendo 401 se a assinatura
 não bater. Vale para qualquer futuro adapter de canal que suporte
 assinatura de webhook (Kommo, WhatsApp Business direto, etc.), não só
 Chatwoot.
+
+---
+
+## D020 — Conhecimento de tenant injetado direto no system prompt do agente (sem RAG/embeddings ainda)
+
+**Contexto**: a migration `0004_knowledge.sql` (Fase 1) já criou
+`knowledge_documents`/`knowledge_chunks` com `pgvector`, mas nenhuma
+ingestão/busca vetorial foi construída (isso é a Fase 5 completa, ainda não
+iniciada). Um novo tenant (Golden Ouro e Prata — comprador de metais
+preciosos) precisava, ainda hoje, que o agente seguisse regras de negócio
+específicas (triagem por urgência/região/item, sempre pedir foto, nunca
+agendar visita, nunca passar valor) sem esperar pela Fase 5.
+
+**Decisão**: `CORE-10 Agent Orchestrator` ganhou um nó Postgres novo
+("Buscar conhecimento do tenant") logo após "Buscar nome da empresa":
+`SELECT COALESCE(string_agg(content, E'\n\n' ORDER BY created_at), '') AS
+knowledge_text FROM knowledge_documents WHERE tenant_id = $1;`. O resultado
+é concatenado (sem chunking, sem embedding, sem busca por similaridade) e
+injetado no `systemMessage` do nó Assistente, junto do nome da empresa.
+Cada tenant guarda suas regras como uma ou mais linhas em
+`knowledge_documents.content` (texto simples).
+
+**Consequência**: funciona bem para tenants com pouco conteúdo (algumas
+regras/parágrafos), que é o caso de todos os tenants ativos hoje. Não
+escala para bases de conhecimento grandes (todo o conteúdo de todo
+`knowledge_documents` do tenant entra no prompt, sem seleção por
+relevância nem limite de tamanho) — quando isso passar a ser um problema,
+a Fase 5 (ingestão + `retrieve-as-tool` do `vectorStorePGVector`)
+substitui esta consulta por uma busca vetorial real, sem mudar o schema.
+Publicado e validado em produção (`activeVersionId
+df29bf8f-ee25-4f3f-b7c9-1209b2572650`).
+
+---
+
+## D021 — Pausa automática de 30 minutos quando um humano responde manualmente pelo Chatwoot
+
+**Contexto**: o usuário precisa poder assumir uma conversa manualmente pelo
+Chatwoot (ex.: caso sensível, negociação) sem que o agente responda por
+cima logo em seguida. Não havia, até então, nenhuma distinção entre uma
+mensagem de saída gerada pelo próprio agente (via CORE-30) e uma mensagem
+de saída digitada por um humano no Chatwoot — ambas chegam ao webhook do
+Chatwoot com `sender.type: "user"`, porque o CORE-30 usa um token de API
+pessoal, não um Agent Bot dedicado.
+
+**Decisão**: `CORE-00 Inbound Gateway` agora processa também eventos de
+mensagem de **saída** (antes eram ignorados por completo). Para toda
+mensagem outgoing: (1) verifica se o `external_id` (id da mensagem no
+Chatwoot) já existe em `messages` — se existir, é eco do próprio agente,
+ignorado; (2) se não existir, é uma resposta humana genuína — busca a
+`conversation_id` correspondente e executa
+`UPDATE conversation_state SET status = 'AI_PAUSED', updated_at = now()
+WHERE conversation_id = $1`, registrando o evento `automation_paused` em
+`agent_events`. Em `CORE-02 Message Buffer`, o nó "Buscar estado da
+conversa" foi alterado para tratar `AI_PAUSED` como `AI_ACTIVE`
+automaticamente quando `updated_at` tem mais de 30 minutos:
+`SELECT CASE WHEN status = 'AI_PAUSED' AND updated_at < now() - interval
+'30 minutes' THEN 'AI_ACTIVE' ELSE status END AS status FROM
+conversation_state WHERE conversation_id = $1;` — sem job/cron separado,
+o próprio buffer resolve o expirado na próxima mensagem do cliente.
+
+**Consequência**: qualquer resposta manual do humano reinicia a janela de
+pausa (cada nova resposta atualiza `updated_at`); o agente permanece calado
+por 30 minutos após a última intervenção humana e retoma sozinho depois
+disso, sem exigir ação explícita de "devolver para a IA". Ambos os
+workflows publicados e ativos (`tl22TbmEhvxqjpE6` versão
+`562b88f9-f543-4572-a75b-88bdfa9f89ed`; `uBQGxhCMBQEasbLa` versão
+`26bfc9da-97de-4c48-a0c4-36b3b0a8fabf`). Ainda não testado com uma resposta
+humana real — próximo passo de validação.

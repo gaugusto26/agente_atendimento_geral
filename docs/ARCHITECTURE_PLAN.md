@@ -108,8 +108,30 @@ usuário na conversa real.
 
 Também testados e corretos: idempotência (mensagem duplicada não duplica
 `messages`/`message_buffer`), tenant desconhecido (ignorado sem erro),
-mensagem de saída (ignorada), buffer agregando múltiplas mensagens
-pendentes em uma única chamada ao agente.
+buffer agregando múltiplas mensagens pendentes em uma única chamada ao
+agente.
+
+### 4.1 Extensões pós-Fase 2 (mesmo dia, tráfego real de cliente)
+
+Duas capacidades adicionadas depois da validação inicial, para sustentar
+uso real no mesmo dia (ver D020/D021 em `DECISIONS.md`):
+
+- **Conhecimento de tenant no prompt** — `CORE-10` concatena
+  `knowledge_documents.content` do tenant e injeta no `systemMessage` do
+  Assistente (sem RAG/embeddings ainda — interino até a Fase 5). Permite
+  onboarding de um novo tenant (ex.: Golden Ouro e Prata) só com linhas
+  em `knowledge_documents`, zero mudança de workflow.
+- **Pausa automática de 30 min em resposta humana manual** — `CORE-00`
+  agora também processa mensagens de **saída** do Chatwoot: distingue eco
+  do próprio agente (via `messages.external_id`) de resposta humana
+  genuína, e para esta última marca `conversation_state.status =
+  'AI_PAUSED'`. `CORE-02` trata `AI_PAUSED` como `AI_ACTIVE` de novo
+  automaticamente após 30 minutos sem atualização (sem job separado).
+  Mensagem de saída deixou de ser simplesmente "ignorada" — agora tem
+  rota própria.
+
+Ambas publicadas e ativas; pausa automática ainda sem teste com resposta
+humana real de ponta a ponta (próximo passo).
 
 ## 5. Próximas fases (não iniciadas)
 
@@ -146,5 +168,11 @@ HMAC do webhook do Chatwoot.
   degradação graciosa.
 - **HMAC do Chatwoot não verificado** (D019): qualquer requisição POST no
   path do webhook é aceita como se fosse do Chatwoot.
+- **Conhecimento injetado sem limite de tamanho** (D020): todo o conteúdo
+  de `knowledge_documents` do tenant entra no prompt sem seleção por
+  relevância — aceitável hoje (tenants com pouco conteúdo), não escala.
+- **Pausa automática (D021) ainda sem teste de ponta a ponta** com uma
+  resposta humana manual real — lógica publicada, mas não exercitada em
+  produção ainda.
 - Demais riscos herdados do repositório de referência (arquivos legados
   quebrados, DataCry sem documentação de API) continuam válidos.
