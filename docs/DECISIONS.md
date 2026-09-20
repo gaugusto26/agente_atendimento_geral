@@ -342,7 +342,34 @@ workflows publicados e ativos (`tl22TbmEhvxqjpE6` versão
 `562b88f9-f543-4572-a75b-88bdfa9f89ed`; `uBQGxhCMBQEasbLa` versão
 `26bfc9da-97de-4c48-a0c4-36b3b0a8fabf`).
 
-**Atualização (2026-09-20) — testado e corrigido**: a validação de ponta a
+**Atualização (2026-09-20) — bug crítico em produção, corrigido**: horas
+depois de "testado e corrigido" abaixo, o próprio usuário relatou em
+tráfego real: *"o agente parou logo após responder a primeira
+mensagem"*. Causa raiz: `CORE-10` salva a resposta do agente em
+`messages` **sem preencher `external_id`** (a coluna fica `NULL` —
+o id do Chatwoot só é conhecido depois que `CORE-30` envia a mensagem e
+recebe a resposta da API). Quando o eco dessa resposta volta pelo webhook
+do Chatwoot, "Checar se é eco do agente" procura por
+`external_id = <id real do Chatwoot>` em `messages` — não encontra
+(porque salvamos `NULL`, nunca o id real) — e trata a própria resposta do
+agente como se fosse um humano respondendo manualmente, pausando a
+conversa. Resultado: o agente ficava mudo logo após a primeira resposta,
+em **toda** conversa, de **todo** tenant, desde que D021 foi publicado.
+
+**Correção**: `CORE-30 Output Gateway` ganhou um nó novo
+("Atualizar external_id da mensagem") logo após enviar a mensagem ao
+Chatwoot: `UPDATE messages SET external_id = $1 WHERE id = (SELECT id
+FROM messages WHERE tenant_id = $2 AND conversation_id = $3 AND
+direction = 'outgoing' AND external_id IS NULL ORDER BY created_at DESC
+LIMIT 1)`, usando o id retornado pela API do Chatwoot. "Log evento
+response_sent" também foi ajustado pra referenciar
+`$("Enviar mensagem no Chatwoot").item.json.id` explicitamente em vez de
+`$json.id` (que passou a apontar pro nó novo). Publicado
+(`04QWtEuiCRQt0vov`, versão `c7b5b0d5-3a26-4e59-a50d-841617a33c36`). As 3
+conversas que tinham sido pausadas incorretamente (2 da Golden, 1 de
+teste) foram reativadas manualmente.
+
+**Anterior (mesmo dia) — testado e corrigido**: a validação de ponta a
 ponta (via execução simulada de webhook no CORE-00) revelou um bug real:
 os nós "Checar se é eco do agente" e "Buscar conversa para pausa" usavam
 `SELECT ... LIMIT 1` sem `alwaysOutputData` — quando a consulta não
