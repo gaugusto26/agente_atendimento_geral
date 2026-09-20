@@ -553,8 +553,57 @@ anteriores) passando o texto como string JSON direta numa operação
 escaping manual de aspas que o Base64 contornava, porque o valor passa
 por serialização JSON nativa da chamada de ferramenta, não por um
 literal de string em código TS. Workflow utilitário temporário
-arquivado depois de usado. Faltou ainda: testar a IA acionando a
-ferramenta de fato numa conversa real/simulada de ponta a ponta (só foi
-testado o sub-workflow isoladamente, com `{success:true}` confirmado), e
-confirmar com o usuário que a mensagem de teste chegou no WhatsApp do
-especialista.
+arquivado depois de usado.
+
+---
+
+**Atualização (2026-09-20)**: o usuário pediu que a notificação inclua o
+telefone do possível cliente a agendar, para o especialista saber quem
+contatar. Em vez de pedir isso ao LLM via `resumo` (o telefone não é algo
+que o cliente digita na conversa — é metadado do canal, não confiável
+extrair de texto livre), `CORE-10` passa `conversation_id` (o UUID
+interno da conversa, não controlado pelo LLM) como parâmetro fixo do
+tool call, e `TOOL-10` ganhou um novo nó "Buscar dados do cliente" que
+resolve telefone/nome reais via `conversations JOIN contacts` (mesmo
+padrão `COALESCE` de subquery usado em D021/D023, para nunca zerar
+linhas). A mensagem final passou a ser: "📞 Cliente: {nome} - {telefone}"
+antes do resumo da IA.
+
+Dois bugs de posicionamento de nó apareceram e foram corrigidos no
+processo, ambos pela mesma causa raiz — **um nó n8n só é executado (e só
+fica disponível para `$("NodeName")`) se estiver no caminho real de
+conexões que leva até o nó atual, não basta compartilhar o mesmo
+trigger**:
+1. Primeira tentativa: "Buscar dados do cliente" ligado em paralelo
+   direto no trigger (mesmo padrão usado em outros pontos desta sessão,
+   que funcionava por coincidência por estarem todos numa cadeia linear
+   única). Erro: `ExpressionError: No path back to referenced node` ao
+   usar `$("Buscar dados do cliente").item...` de dentro do node que
+   monta a mensagem — n8n exige rastrear o `pairedItem` de volta pela
+   cadeia de conexões, e um branch irmão sem conexão para o node atual
+   não tem esse caminho.
+2. Trocar `.item` por `.first()` (que não depende de `pairedItem`)
+   resolveu o erro de expressão, mas revelou o problema real: `Node
+   'Buscar dados do cliente' hasn't been executed` — o n8n só executa os
+   nodes que estão no caminho de conexões até o node final da run; um
+   branch desconectado do caminho principal simplesmente nunca roda.
+   Corrigido movendo "Buscar dados do cliente" para dentro da cadeia
+   serial principal (depois de "Conversa aberta encontrada?", antes de
+   "Enviar notificação ao especialista"), o que também expôs uma
+   colisão de nomes: `conversation_id` do cliente (UUID interno) e
+   `conversation_id` da conversa do especialista no Chatwoot (inteiro,
+   ex. `4`) são coisas diferentes — a URL de envio da mensagem foi
+   corrigida para usar explicitamente `$("Encontrar conversa
+   aberta").first().json.conversation_id` (o inteiro do Chatwoot), nunca
+   `$json.conversation_id` ambíguo.
+
+Testado de ponta a ponta com uma conversa real da Golden (não um UUID
+fake): telefone e nome do cliente resolvidos corretamente do banco e a
+notificação chegou formatada como esperado — confirmado pelo retorno da
+API do Chatwoot (`{success:true}`, mensagem `id 21543` criada na
+conversa `4` do especialista). Workflow de teste temporário arquivado
+depois de usado. Ainda faltando: testar a IA acionando a ferramenta de
+fato dentro de uma conversa real/simulada de ponta a ponta via
+`Assistente (Golden)` (só o sub-workflow foi testado diretamente até
+agora), e confirmar com o usuário que as mensagens de teste chegaram no
+WhatsApp do especialista.
