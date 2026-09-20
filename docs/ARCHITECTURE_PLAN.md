@@ -214,6 +214,14 @@ HMAC do webhook do Chatwoot.
   — implementado como ramificação manual no CORE-10, não como sistema
   genérico. Se mais tenants precisarem, vale generalizar via
   `tenant_llm_config` em vez de crescer uma cadeia de IFs.
+- **Ferramenta de notificação ao especialista humano só existe para a
+  Golden** (D026) — `TOOL-10 Notificar Especialista Golden` conectado
+  como AI Agent tool exclusivamente ao branch "Assistente (Golden)" do
+  CORE-10; envia WhatsApp direto ao especialista (Chatwoot API) quando a
+  IA identifica avaliação pronta para agendar. Mesmo padrão pragmático de
+  D025 (ramificação manual por tenant, não sistema genérico) — replicar
+  o padrão se um segundo tenant precisar, generalizar só com um segundo
+  caso real.
 - **Incidente de grupo (D022) exigiu desativar manualmente todos os
   workflows do Core** — todos foram republicados após a correção; serve
   de lembrete que não existe hoje um "kill switch" granular (ex.: pausar

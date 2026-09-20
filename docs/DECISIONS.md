@@ -492,3 +492,69 @@ interno, mas se algum dia forem compartilhados externamente, precisam de
 `UNIQUE` do banco vai rejeitar, mas a mensagem de erro pro usuário ainda é
 genérica do Postgres, não amigável) — melhorar se isso incomodar no uso
 real.
+
+---
+
+## D026 — Ferramenta de notificação ao especialista humano (Golden), via AI Agent tool
+
+**Contexto**: depois de validar o pipeline completo (CORE-00→CORE-30) e
+isolar a credencial de LLM da Golden (D025), o usuário pediu um último
+ajuste: quando a IA (Clara) identifica que um lead está pronto para
+agendar a avaliação, o especialista humano da Golden precisa ser avisado
+automaticamente — hoje isso só acontecia se o cliente pedisse
+explicitamente para falar com alguém, e mesmo assim não havia nenhuma
+notificação real, só uma mensagem genérica pro cliente. Entre as opções
+(nota interna no Chatwoot, WhatsApp direto, ou os dois), o usuário optou
+por **WhatsApp direto para o especialista** (`+55 17 99109-9157`).
+
+**Decisão**: criado `TOOL-10 Notificar Especialista Golden`
+(`dvHN17yiFnerXqlh`), um sub-workflow n8n com um `Execute Workflow
+Trigger` recebendo `{ resumo: string }`, que busca o contato do
+especialista no Chatwoot (conta 7, o mesmo workspace da Golden), abre ou
+reaproveita uma conversa aberta com ele, e envia o resumo como mensagem
+outgoing via API do Chatwoot (`POST
+/api/v1/accounts/7/conversations/{id}/messages`). Retorna
+`{ success: boolean, detail: string }`.
+
+Esse sub-workflow foi conectado ao `CORE-10 Agent Orchestrator`
+(`pnKnvq3lf1KvjSRz`) como uma **AI Agent tool**
+(`@n8n/n8n-nodes-langchain.toolWorkflow`, nó "Notificar Especialista
+Tool"), ligado **somente** ao branch "Assistente (Golden)" (o branch
+criado em D025) — nenhum outro tenant tem acesso a essa ferramenta, já
+que ela é específica do fluxo comercial da Golden. O parâmetro `resumo` é
+preenchido pelo próprio LLM via `$fromAI('resumo', <descrição>,
+'string')`, com uma descrição detalhada de quando acionar a ferramenta
+(material, tipo de peça, avaliação pronta pra agendar) e o que incluir no
+resumo. `pnKnvq3lf1KvjSRz` publicado
+(`activeVersionId: 8ae97848-ce25-4b80-9fb2-9fb172c6c5e3`).
+
+O script da Golden (`n8n/agents/golden-ouro-prata-sdr.md`, replicado em
+`knowledge_documents`) foi atualizado nas seções 8 (Condução para a
+avaliação) e 10 (Solicitação de atendimento humano — agora dividida em
+10.1 "Notificar Especialista" e 10.2 "Outras situações"), substituindo a
+instrução genérica "só execute a transferência se houver ferramenta
+autorizada e disponível" por instruções concretas de quando acionar a
+ferramenta, o que incluir no resumo, e a regra de só confirmar ao cliente
+que o especialista foi avisado se a ferramenta retornar `success: true`.
+
+**Consequência (dívida registrada)**: assim como D025, isso é específico
+da Golden — não um sistema genérico de "transferência para humano"
+reutilizável por outros tenants. Se um segundo tenant precisar de
+notificação semelhante, replicar o padrão (sub-workflow tool + IF de
+tenant no CORE-10) é aceitável por ora; generalizar via
+`tenant_llm_config`-like config (ex.: `tenant_tools_config`) só quando um
+segundo caso real aparecer (YAGNI, mesmo raciocínio de D025). O nó
+Postgres de `TOOL-10` sofreu a recorrência de D016 (credencial
+auto-atribuída errada) — corrigido manualmente. A inserção do texto
+atualizado do script em `knowledge_documents` foi feita via
+`n8n-nodes-base.set` (não Postgres/Code+Base64 como em atualizações
+anteriores) passando o texto como string JSON direta numa operação
+`updateNodeParameters` do `update_workflow` — evita totalmente o
+escaping manual de aspas que o Base64 contornava, porque o valor passa
+por serialização JSON nativa da chamada de ferramenta, não por um
+literal de string em código TS. Workflow utilitário temporário
+arquivado depois de usado. Faltou ainda: testar a IA acionando a
+ferramenta de fato numa conversa real/simulada de ponta a ponta (só foi
+testado o sub-workflow isoladamente, com `{success:true}` confirmado), e
+confirmar com o usuário que a mensagem de teste chegou no WhatsApp do
+especialista.
