@@ -147,6 +147,20 @@ humana real de ponta a ponta (próximo passo).
   sem tocar em tenant/banco/agente. Gerenciável só com SQL (base pro
   futuro painel), sem mudança de workflow.
 
+## 4.2 Painel operacional (D024)
+
+3 formulários n8n (`n8n Form Trigger`), sem app/serviço novo (mantém D011):
+
+| Workflow | Função |
+|---|---|
+| PAINEL-01 Onboarding de Tenant | Cria tenant + features + CRM config numa submissão |
+| PAINEL-02 Adicionar Conhecimento | Insere regra/FAQ em `knowledge_documents` de um tenant |
+| PAINEL-03 Excluir Contato | Insere número em `excluded_contacts` (D023) |
+
+Substitui o fluxo manual "eu escrevo SQL, Hermes roda" para essas 3
+operações recorrentes. `tenant_channels` (canal/inbox) continua fora do
+formulário — só dá pra descobrir depois de uma mensagem real do número.
+
 ## 5. Próximas fases (não iniciadas)
 
 - **Fase 3 — Human Handoff**: `handoff.request`, tradução por CRM Adapter

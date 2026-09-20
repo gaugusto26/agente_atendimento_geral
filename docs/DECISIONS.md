@@ -362,3 +362,39 @@ conhecida da extração atual), então a exclusão hoje só é garantida no
 sentido cliente→agente, que é o caso que importa aqui. `tl22TbmEhvxqjpE6`
 publicado (versão `8fc823dd-9eae-4e64-868d-ae47ff46b97e`) com
 `+5515981772842` já inserido na tabela.
+
+---
+
+## D024 — Painel operacional em n8n (formulários), sem serviço/app novo
+
+**Contexto**: com múltiplos tenants e uma lista de exclusão crescendo, cadastrar
+tudo via SQL manual (eu escrevo, Hermes roda) não escala nem é seguro a
+longo prazo — o usuário pediu explicitamente por um "painel" depois do
+incidente de grupo. Construir uma aplicação web dedicada contradiria D011
+(Core em n8n puro, sem novo componente de infra).
+
+**Decisão**: 3 workflows n8n com `n8n Form Trigger`, cada um um formulário
+interno que escreve direto no Postgres da plataforma, sem SQL manual:
+
+| Workflow | ID | Função |
+|---|---|---|
+| PAINEL-01 Onboarding de Tenant | `wvIJS4f12b0AYVYt` | Cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão |
+| PAINEL-02 Adicionar Conhecimento | `Hi1cZ6vKWfM1Eat0` | Insere em `knowledge_documents` para um tenant existente (valida `tenant_key` antes) |
+| PAINEL-03 Excluir Contato | `LcCCXfkXcG3yfIeS` | Insere em `excluded_contacts` (D023) |
+
+Todos com `responseMode: lastNode` (só responde depois que o insert
+terminar, nunca antes) e `appendAttribution: false`. O `PAINEL-01` não
+cria `tenant_channels` — isso continua dependendo de uma mensagem real do
+canal novo pra descobrir `account_id`/`inbox_id`, então fica fora do
+formulário por ora.
+
+**Consequência (dívida registrada)**: como em todo `create_workflow_from_code`,
+a auto-atribuição de credencial (D016) errou nos 3 workflows — corrigida
+manualmente logo em seguida. Não há autenticação nesses formulários além
+da URL não-adivinhável (mesmo modelo de D019) — aceitável para uso
+interno, mas se algum dia forem compartilhados externamente, precisam de
+`authentication: basicAuth` ou `n8nUserAuth`. `PAINEL-01` não lida com
+`tenant_channels` nem com erro de `tenant_key` duplicado (constraint
+`UNIQUE` do banco vai rejeitar, mas a mensagem de erro pro usuário ainda é
+genérica do Postgres, não amigável) — melhorar se isso incomodar no uso
+real.
