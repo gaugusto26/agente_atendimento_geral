@@ -332,3 +332,33 @@ correção, na ordem de dependência (sub-workflows antes de quem os chama),
 já que `publish_workflow` recusa publicar um workflow cujos
 sub-workflows referenciados (via Execute Workflow) não estejam
 publicados.
+
+---
+
+## D023 — Lista de contatos excluídos (`excluded_contacts`), independente de grupo
+
+**Contexto**: além do incidente de grupo (D022), identificou-se um número
+de telefone específico (`+5515981772842`, contato "Alertas e Mensagens" no
+Chatwoot) gerando tráfego indevido para o agente — não é um grupo, é um
+contato 1:1 que não deveria receber resposta automática (número
+interno/de alerta, não cliente real). Diferente de grupo, não dá para
+detectar isso por um padrão no payload — é uma lista específica que
+cresce com o tempo (mais números podem precisar ser excluídos depois).
+
+**Decisão**: nova tabela `excluded_contacts` (migration `0005`) —
+`tenant_id` (nulo = vale para todos os tenants), `phone` (formato exato
+como o Chatwoot normaliza), `reason`. `CORE-00` ganhou um novo passo logo
+após o filtro de grupo: consulta `SELECT id FROM excluded_contacts WHERE
+phone = $1 LIMIT 1` usando o `contact_phone` extraído do webhook: se
+encontrar, responde `{ignored: true, reason: "excluded_contact"}` sem
+resolver tenant, persistir nada ou acionar o agente.
+
+**Consequência**: adicionar/remover um número da exclusão é só um `INSERT`/
+`DELETE` em `excluded_contacts` — nenhuma mudança de workflow necessária,
+consistente com o padrão já usado para tenants/conhecimento. `contact_phone`
+só vem preenchido em mensagens de entrada (em mensagens de saída o
+`sender` do payload é o usuário do Chatwoot, não o contato — limitação
+conhecida da extração atual), então a exclusão hoje só é garantida no
+sentido cliente→agente, que é o caso que importa aqui. `tl22TbmEhvxqjpE6`
+publicado (versão `8fc823dd-9eae-4e64-868d-ae47ff46b97e`) com
+`+5515981772842` já inserido na tabela.

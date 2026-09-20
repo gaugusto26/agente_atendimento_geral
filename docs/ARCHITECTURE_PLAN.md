@@ -141,6 +141,11 @@ humana real de ponta a ponta (próximo passo).
   webhook, antes de resolver tenant, e ignora a mensagem por completo
   (`{ignored:true, reason:"group_conversation"}"`) sem persistir nada nem
   acionar o agente. Vale para todos os tenants automaticamente.
+- **Lista de contatos excluídos (D023)** — nova tabela `excluded_contacts`
+  (migration `0005`), consultada logo após o filtro de grupo. Um número
+  de telefone lá dentro faz o `CORE-00` ignorar a mensagem por completo,
+  sem tocar em tenant/banco/agente. Gerenciável só com SQL (base pro
+  futuro painel), sem mudança de workflow.
 
 ## 5. Próximas fases (não iniciadas)
 
