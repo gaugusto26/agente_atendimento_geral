@@ -45,6 +45,12 @@ workflows) — ver `docs/DECISIONS.md#d011`. Banco de dados é PostgreSQL.
 
 ## Status
 
-Fase 1 (Fundação) em andamento: schema de banco, contratos e estrutura de
-diretórios. Nenhum workflow n8n funcional foi implementado ainda — ver
-`docs/ARCHITECTURE_PLAN.md` para as fases seguintes.
+**Fase 1 (Fundação)** e **Fase 2 (primeiro fluxo funcional)** concluídas e
+validadas com tráfego real: uma mensagem enviada por WhatsApp chega via
+Chatwoot, é processada pelo agente (Google Gemini + memória por conversa) e
+a resposta volta pro cliente. Detalhes, IDs dos workflows publicados no n8n
+e dívidas técnicas conhecidas em `docs/ARCHITECTURE_PLAN.md` e
+`docs/DECISIONS.md` (D015–D019).
+
+Próximas fases (não iniciadas): Human Handoff, Calendar, Knowledge/RAG,
+Kommo, DataCry.

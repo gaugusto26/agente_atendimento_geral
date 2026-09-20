@@ -101,3 +101,124 @@ pagamento (Stripe/Mercado Pago/etc.) é necessária nesta fase — o schema
 atual (`llm_calls`) já é suficiente. Se o modelo mudar no futuro para (2)
 ou (3), a mudança é aditiva (novas tabelas + um job de agregação de uso por
 período), sem alterar o que já existe.
+
+---
+
+## D015 — Workflows n8n construídos direto na instância real via MCP (supera D013)
+
+**Contexto**: D013 registrou que o MCP do `n8n` desta sessão estava sem
+autenticação, e por isso a Fase 2 seguiria por especificação nó-a-nó em
+Markdown para o usuário montar manualmente. Durante a sessão o MCP do `n8n`
+passou a conectar de verdade (o problema anterior era falha de conexão do
+lado da infraestrutura, não falta de autorização).
+
+**Decisão**: a partir daí, todos os workflows (`CORE-01`, `CORE-00`,
+`CORE-30`, `CORE-10`, `CORE-02`) foram construídos **diretamente na
+instância n8n real do usuário**, via `n8n Workflow SDK` (TypeScript
+restrito) + as ferramentas do MCP (`get_workflow_sdk_reference`,
+`get_workflow_best_practices`, `search_nodes`, `get_node_types`,
+`validate_workflow`, `create_workflow_from_code`, `update_workflow`,
+`publish_workflow`, `execute_workflow`, `get_workflow_execution`). Cada
+workflow foi validado antes de criar, e testado com uma execução real
+(inclusive tráfego de webhook genuíno do Chatwoot) antes de ser considerado
+pronto.
+
+**Consequência**: os arquivos `.md` de especificação em `n8n/core/`
+(`CORE-00-inbound-gateway-chatwoot.md`, `CORE-01-tenant-resolver.md`,
+`CORE-00-CORE-01-validation.md`) continuam no repositório como *documentação
+de referência* do desenho original, mas a fonte de verdade agora é o que
+está publicado no n8n (ver tabela de IDs na Seção "Status — Fase 2" do
+`ARCHITECTURE_PLAN.md`). Nenhum arquivo `.json` de workflow é versionado
+neste repositório — os workflows vivem no n8n, não em Git, o que é uma
+limitação conhecida (sem histórico de diff textual, sem review de PR sobre
+mudanças de workflow) aceita conscientemente pela decisão D011 (n8n puro).
+
+---
+
+## D016 — Auto-atribuição de credencial do MCP não é confiável; sempre conferir e corrigir
+
+**Contexto**: em repetidas ocasiões, `create_workflow_from_code` e
+`update_workflow` (via `addNode`) auto-atribuíram a **credencial errada**
+em nós Postgres e HTTP — pegaram uma credencial pré-existente qualquer do
+mesmo tipo (`Postgres VPS`, usada por workflows antigos não relacionados a
+este projeto) em vez da credencial `agent_platform_postgres` pedida
+explicitamente por nome via `newCredential('agent_platform_postgres')`.
+
+**Decisão**: depois de **todo** `create_workflow_from_code`/`addNode` que
+envolva um nó com credencial, ler o campo `autoAssignedCredentials` da
+resposta e, se a credencial atribuída não for exatamente a esperada,
+corrigir imediatamente com `setNodeCredential` (por ID, nunca só por nome)
+antes de publicar ou testar o workflow.
+
+**Consequência**: mais uma chamada de correção por workflow criado, mas
+elimina o risco real de um workflow novo silenciosamente ler/escrever no
+Postgres errado (ou pior, no banco de outro projeto do usuário) — o exato
+tipo de acoplamento indevido que o projeto inteiro existe para evitar.
+
+---
+
+## D017 — Provider de LLM da Fase 2: Google Gemini (não OpenAI), sem Router ainda
+
+**Contexto**: a credencial `OpenAi account` do usuário estava sem créditos
+(`no credits remaining`), e a `Google Gemini(PaLM) Api gui` inicialmente
+também bateu num teto de gasto do projeto (`monthly spending cap`), até o
+usuário aumentar esse teto no Google AI Studio.
+
+**Decisão**: `CORE-10 Agent Orchestrator` usa o nó
+`@n8n/n8n-nodes-langchain.lmChatGoogleGemini` (credencial `googlePalmApi`,
+já existente) como model subnode do AI Agent, modelo
+`models/gemini-3.1-flash-lite`. Não existe ainda um LLM Router (`LLM-00`)
+nem fallback entre providers — é uma chamada direta a um único provider,
+consistente com o escopo mínimo da Fase 2 do plano original.
+
+**Consequência**: se essa chave também ficar indisponível (billing, rate
+limit), o Agent Orchestrator falha sem fallback — aceitável para a Fase 2,
+mas `LLM-00 Router` (Seção 11 do briefing original) continua como trabalho
+pendente antes de qualquer uso além de teste/piloto.
+
+---
+
+## D018 — Memória do agente usa tabela própria do n8n, não a tabela `messages` do Core
+
+**Contexto**: o desenho original (Seção 17 do briefing) previa um
+`CORE-03 Context Builder` que montaria o contexto do agente a partir do
+histórico normalizado em `messages` (últimas mensagens + resumo + dados
+importantes), evitando mandar histórico bruto demais para o LLM. Para
+ligar o agente rapidamente nesta sessão, usei o nó pronto
+`@n8n/n8n-nodes-langchain.memoryPostgresChat` dentro do próprio
+`CORE-10 Agent Orchestrator`, com `sessionKey = tenant_id:conversation_id`
+e uma tabela própria (`agent_chat_memory`, formato langchain), **sem**
+construir o `CORE-03 Context Builder` nem ler de `messages`.
+
+**Decisão**: aceitar essa simplificação para a Fase 2 funcionar hoje.
+`agent_chat_memory` e `messages` guardam o histórico de forma duplicada e
+com formatos diferentes.
+
+**Consequência (dívida registrada)**: falta construir `CORE-03 Context
+Builder` de verdade (lendo de `messages`, aplicando janela/resumo) e decidir
+se `memoryPostgresChat` continua como cache de curto prazo do LangChain por
+cima disso, ou se é substituído completamente. Não tratar isso antes de
+Fase 5 (Knowledge/RAG) provavelmente duplica ainda mais lógica de contexto.
+
+---
+
+## D019 — Verificação de assinatura HMAC do Chatwoot ainda não implementada
+
+**Contexto**: o Chatwoot assina os webhooks que envia (headers
+`X-Chatwoot-Signature` / `X-Chatwoot-Timestamp`, confirmados em execuções
+reais). O usuário tem o secret de assinatura, mas ainda não foi decidido
+nem implementado como o `CORE-00` deveria validar essa assinatura.
+
+**Decisão**: por ora, `CORE-00 Inbound Gateway` continua com
+`authentication: none` no nó Webhook — a única proteção é o path do
+webhook ser um UUID não-adivinhável
+(`a3f1e9c2-7b64-4d8a-9e21-5c6f0b2d1a4e`). Isso foi aceito conscientemente
+para não atrasar o teste de ponta a ponta da Fase 2.
+
+**Consequência (dívida registrada)**: antes de qualquer uso além de piloto
+interno, adicionar um nó (Code, validando HMAC-SHA256 do corpo bruto contra
+o header de assinatura, usando o secret como credencial nova no n8n — nunca
+em texto no workflow) logo após o Webhook, respondendo 401 se a assinatura
+não bater. Vale para qualquer futuro adapter de canal que suporte
+assinatura de webhook (Kommo, WhatsApp Business direto, etc.), não só
+Chatwoot.

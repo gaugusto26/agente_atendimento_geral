@@ -48,9 +48,11 @@
   tool-call.schema.json             — contrato de tool calling (Seção 13)
   crm-action.schema.json            — contrato do CRM Router (Seção 9)
 /n8n
-  core/ crm/ llm/ tools/ agents/    — READMEs com convenção de nomes e
-                                       responsabilidades; nenhum workflow
-                                       implementado ainda
+  core/                              — specs + roteiro de validação (referência);
+                                       os workflows reais (Fase 2, concluída)
+                                       estão publicados no n8n, não neste repo
+  crm/ llm/ tools/ agents/           — READMEs com convenção de nomes e
+                                       responsabilidades; ainda sem workflow
   legacy/                           — README explicando por que os workflows
                                        antigos NÃO foram copiados para cá
 /scripts                            — placeholder para utilitários de migração/seed
@@ -61,66 +63,88 @@ de agregação (buffer, conversa, sessão de agente) usam
 `tenant_id + conversation_id`, nunca só telefone — correção direta do
 problema identificado no projeto de referência.
 
-## 3. O que falta para a Fase 1 estar completa
+## 3. Fase 1 — concluída
 
-- **Interfaces base como workflows n8n reais** (item 9 da Fase 1 do
-  briefing): CRM Adapter, LLM Adapter, Channel Adapter, Calendar Adapter,
-  Storage Adapter. Ainda não foram criados workflows `.json` reais — apenas
-  a estrutura de pastas e os contratos que eles vão implementar.
-  - Motivo de não ter avançado direto para isso: hand-crafting de JSON de
-    workflow n8n é propenso a erro (foi exatamente a causa dos 5 arquivos
-    quebrados no projeto de referência). O caminho mais seguro é criar esses
-    workflows **dentro do próprio n8n** (import/export validado pela própria
-    ferramenta) ou, se disponível, via a integração MCP do n8n para
-    criar/validar workflows programaticamente. Ver Seção 6 (Riscos/decisões
-    pendentes).
-- Rodar as migrations contra um Postgres real e validar (nenhum ambiente de
-  banco foi provisionado nesta sessão).
+Migrations rodadas e validadas contra um Postgres real (`agent_platform_postgres`,
+container dedicado na stack self-hosted do usuário, separado do Postgres
+interno do n8n — ver `database/README.md`). As 17 tabelas existem e foram
+exercitadas com dados reais.
 
-## 4. Próxima fase (Fase 2 — primeiro fluxo funcional)
-
-Sem Calendar e sem RAG, conforme o plano original:
+## 4. Fase 2 — primeiro fluxo funcional: **concluída e validada com tráfego real**
 
 ```
 Chatwoot → CORE-00 Inbound Gateway → CORE-01 Tenant Resolver
-         → CORE-02 Message Buffer → CORE-03 Context Builder
-         → LLM-00 Router → CORE-10 Agent Orchestrator
+         → CORE-02 Message Buffer → CORE-10 Agent Orchestrator (Gemini + memória)
          → CORE-30 Output Gateway → Chatwoot
 ```
 
-Objetivo: usuário manda mensagem → sistema recebe → resolve tenant → agrupa
-mensagens → verifica estado IA/Humano (`conversation_state`) → consulta LLM
-→ responde. Cada etapa grava eventos em `agent_events` (CORE-90 Logging).
+Sem Calendar e sem RAG, como previsto. **Sem CORE-03 Context Builder** e
+**sem LLM-00 Router** — ver D018/D017 em `DECISIONS.md` (simplificações
+aceitas para validar o fluxo rapidamente; dívida registrada, não esquecida).
 
-## 5. Módulos e ordem de dependência (igual ao repositório de referência)
+### Workflows publicados no n8n (`https://n8n.digitalfive.com.br`)
 
-1. Contratos (`/schemas`, `/config`) — já criados nesta Fase 1.
-2. `/database/migrations` — já criadas; faltam rodar contra um banco real.
-3. CORE-00 Inbound Gateway + CORE-01 Tenant Resolver (primeiro workflow
-   real a construir — sem ele nada mais tem tenant_id para operar).
-4. CORE-02 Message Buffer (usa `message_buffer`, chave `tenant_id +
-   conversation_id`).
-5. CRM-11 Chatwoot (primeiro adapter concreto, alinhado à Fase 2).
-6. LLM-10 OpenAI + LLM-00 Router (mínimo para o Agent Orchestrator
-   responder).
-7. CORE-10 Agent Orchestrator + CORE-30 Output Gateway.
+| Workflow | ID | Responsabilidade |
+|---|---|---|
+| CORE-00 Inbound Gateway (Chatwoot) | `tl22TbmEhvxqjpE6` | Webhook → Universal Message → persistência idempotente → enfileira buffer |
+| CORE-01 Tenant Resolver | `SORheYP8kFYlvQh1` | Resolve `tenant_id` a partir de provider/account/inbox |
+| CORE-02 Message Buffer | `uBQGxhCMBQEasbLa` | Debounce 4s, confirma mensagem mais recente, checa `AI_ACTIVE`, agrega |
+| CORE-10 Agent Orchestrator | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id` |
+| CORE-30 Output Gateway | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
 
-## 6. Riscos e decisões pendentes
+Construídos diretamente na instância n8n do usuário via MCP (`n8n Workflow
+SDK` + ferramentas de create/update/validate/execute) — ver D015 em
+`DECISIONS.md`. Não existe `.json` de workflow versionado neste repositório;
+os `.md` em `n8n/core/` (specs + roteiro de validação) continuam como
+documentação de referência do desenho, mas o que roda de verdade é o que
+está publicado no n8n.
 
-- **Como construir os workflows n8n com segurança** (ver Seção 3 acima): a
-  melhor opção é usar o MCP do n8n (aparece na lista de servidores desta
-  sessão, mas está **sem autenticação configurada**) para criar/editar
-  workflows diretamente na instância real, com validação da própria
-  ferramenta — em vez de eu escrever `.json` de workflow à mão, que é onde
-  o projeto de referência quebrou. Alternativa: eu preparo uma especificação
-  nó-a-nó (inputs/outputs, expressões) para cada workflow, e você monta no
-  editor do n8n a partir dela.
-- **Credenciais reais do CRM/LLM/Calendar**: nenhuma foi solicitada nem
-  usada. Precisam ser cadastradas como credenciais do próprio n8n (nunca em
-  arquivo de workflow) quando os workflows reais forem construídos.
-- **Ambiente Postgres de destino**: onde as migrations vão rodar (Supabase,
-  RDS, instância própria) ainda não foi definido — impacta se `pgvector`
-  está disponível por padrão.
-- Demais riscos e decisões herdados do repositório de referência (arquivos
-  legados quebrados, DataCry sem documentação de API) continuam válidos —
-  ver o `ARCHITECTURE_PLAN.md` original para o detalhamento completo.
+**Validado com execução real**: mensagem enviada por WhatsApp → Chatwoot →
+webhook (assinatura HMAC do Chatwoot presente no header, mas ainda não
+verificada pelo CORE-00 — D019) → tenant resolvido → buffer → Gemini gerou
+resposta contextualizada em PT-BR → resposta persistida em `messages` →
+enviada de volta ao Chatwoot com sucesso → confirmada visualmente pelo
+usuário na conversa real.
+
+Também testados e corretos: idempotência (mensagem duplicada não duplica
+`messages`/`message_buffer`), tenant desconhecido (ignorado sem erro),
+mensagem de saída (ignorada), buffer agregando múltiplas mensagens
+pendentes em uma única chamada ao agente.
+
+## 5. Próximas fases (não iniciadas)
+
+- **Fase 3 — Human Handoff**: `handoff.request`, tradução por CRM Adapter
+  (Chatwoot → label/estado), Agent Orchestrator checando
+  `conversation_state.status` antes de responder (hoje o CORE-02 já checa
+  `AI_ACTIVE`, mas não há ferramenta para a IA *pedir* handoff).
+- **Fase 4 — Calendar**: TOOL-10, Google Calendar, `config.calendars[]` já
+  desenhado no schema do Tenant Config.
+- **Fase 5 — Knowledge/RAG**: `knowledge_documents`/`knowledge_chunks` já
+  existem (migration `0004`); falta ingestão e o `retrieve-as-tool` do
+  `vectorStorePGVector` no Agent.
+- **Fase 6 — Kommo** / **Fase 7 — DataCry**: novos `CORE-00` (um por
+  provider, mesma técnica do Chatwoot) + adapters de CRM Router.
+
+Antes dessas fases, vale fechar as dívidas da Fase 2 (D017–D019):
+LLM Router com fallback, CORE-03 Context Builder de verdade, e verificação
+HMAC do webhook do Chatwoot.
+
+## 6. Riscos atualizados
+
+- **Auto-atribuição de credencial do MCP do n8n não é confiável** — sempre
+  conferir `autoAssignedCredentials` e corrigir por ID (ver D016). Um
+  esquecimento aqui faz um workflow novo ler/escrever no banco errado
+  silenciosamente.
+- **Workflows vivem só no n8n, não em Git** — sem diff textual, sem review
+  de PR sobre mudança de workflow, sem rollback via `git revert` (só via
+  histórico de versão do próprio n8n, `get_workflow_history`/
+  `restore_workflow_version`). Aceito conscientemente por D011, mas exige
+  disciplina operacional (nomear bem cada `versionName`/`versionDescription`
+  ao publicar).
+- **Sem LLM Router/fallback** (D017): uma indisponibilidade do único
+  provider configurado (billing, rate limit) derruba o agente inteiro sem
+  degradação graciosa.
+- **HMAC do Chatwoot não verificado** (D019): qualquer requisição POST no
+  path do webhook é aceita como se fosse do Chatwoot.
+- Demais riscos herdados do repositório de referência (arquivos legados
+  quebrados, DataCry sem documentação de API) continuam válidos.
