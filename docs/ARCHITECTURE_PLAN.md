@@ -199,9 +199,15 @@ HMAC do webhook do Chatwoot.
 - **Conhecimento injetado sem limite de tamanho** (D020): todo o conteúdo
   de `knowledge_documents` do tenant entra no prompt sem seleção por
   relevância — aceitável hoje (tenants com pouco conteúdo), não escala.
-- **Pausa automática (D021) ainda sem teste de ponta a ponta** com uma
-  resposta humana manual real — lógica publicada, mas não exercitada em
-  produção ainda.
+- **Pausa automática (D021) testada e corrigida** (2026-09-20): validação
+  revelou e corrigiu um bug real (consulta sem `alwaysOutputData` travava
+  a cadeia silenciosamente quando não achava eco/conversa — mesma classe
+  de bug do filtro de contato excluído, já resolvido com `COALESCE`).
+  Pausa e expiração de 30 minutos confirmadas funcionando.
+- **Credencial de LLM isolada por tenant só existe para a Golden** (D025)
+  — implementado como ramificação manual no CORE-10, não como sistema
+  genérico. Se mais tenants precisarem, vale generalizar via
+  `tenant_llm_config` em vez de crescer uma cadeia de IFs.
 - **Incidente de grupo (D022) exigiu desativar manualmente todos os
   workflows do Core** — todos foram republicados após a correção; serve
   de lembrete que não existe hoje um "kill switch" granular (ex.: pausar

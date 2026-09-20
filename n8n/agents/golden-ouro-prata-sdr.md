@@ -1,13 +1,16 @@
 # Agente SDR — Golden Compra de Ouro & Prata
 
-> **Status: ATIVO** — inserido em `knowledge_documents` do tenant
-> `golden_ouro_prata` (`7f3a1c20-19e2-4b8b-9d5a-2b6e4a10f001`) em
-> 2026-09-20, substituindo as 2 linhas resumidas anteriores. Linha atual:
-> id `7d48c97b-7579-43a3-bfe2-285a0006ce41`, categoria `POLICY`, título
-> "Agente SDR completo". Ainda falta configurar `tenant_channels` (canal
-> de WhatsApp) antes de qualquer tráfego real chegar a esse tenant —
-> depende de uma mensagem de teste do número novo para extrair
-> `account_id`/`inbox_id`.
+> **Status: ATIVO e VALIDADO EM PRODUÇÃO** — inserido em
+> `knowledge_documents` do tenant `golden_ouro_prata`
+> (`7f3a1c20-19e2-4b8b-9d5a-2b6e4a10f001`) em 2026-09-20, substituindo as
+> 2 linhas resumidas anteriores. Linha atual: id
+> `7d48c97b-7579-43a3-bfe2-285a0006ce41`, categoria `POLICY`, título
+> "Agente SDR completo". Canal já configurado (`tenant_channels`:
+> `account_id=7`, `inbox_id=12`). Credencial de Gemini dedicada
+> (`GOLDEN OURO GEMINI API KEY`) isolada da credencial compartilhada —
+> ver D025 em `docs/DECISIONS.md`. Testado com mensagem simulada
+> perguntando sobre venda de relógio: a Clara recusou corretamente,
+> seguindo a regra da seção 5 do script.
 >
 > Checklist (todos confirmados):
 > - [x] Nome da assistente — Clara

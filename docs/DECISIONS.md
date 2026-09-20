@@ -254,6 +254,46 @@ substitui esta consulta por uma busca vetorial real, sem mudar o schema.
 Publicado e validado em produção (`activeVersionId
 df29bf8f-ee25-4f3f-b7c9-1209b2572650`).
 
+## D025 — Credencial de Gemini dedicada para a Golden (isolamento de custo/quota)
+
+**Contexto**: durante a validação de fluxo, uma chamada de teste esgotou o
+crédito pré-pago compartilhado do Google AI Studio (`Google Gemini(PaLM)
+Api gui`, credencial usada por todos os tenants), derrubando a resposta
+da IA para todo mundo — inclusive a Golden, que tem tráfego real hoje.
+Isso é exatamente o cenário que D014 (BYOK) previu, mas ainda não
+implementado: sem isolamento de credencial por tenant, um único tenant
+(ou um teste) pode esgotar a cota de todos.
+
+**Decisão**: `CORE-10 Agent Orchestrator` ganhou uma ramificação logo após
+buscar o conhecimento do tenant: um nó IF ("Tenant Golden?") compara
+`tenant_id` contra o UUID da Golden
+(`7f3a1c20-19e2-4b8b-9d5a-2b6e4a10f001`). Se for a Golden, usa um par
+dedicado de nós — "Assistente (Golden)" + "Google Gemini Chat Model
+(Golden)" — com a credencial `GOLDEN OURO GEMINI API KEY` (chave própria,
+criada pelo usuário em conta separada do Google AI Studio). Qualquer
+outro tenant continua no par original ("Assistente" + "Google Gemini Chat
+Model"), com a credencial compartilhada. As duas rotas convergem de volta
+no mesmo nó "Salvar resposta como mensagem". `CORE-30 Output Gateway`
+teve que ser corrigido: antes lia `$("Assistente").item.json.output` por
+nome fixo, o que quebraria na rota da Golden (só "Assistente (Golden)"
+roda nesse caso); agora lê `$("Salvar resposta como mensagem").item.json.text`,
+que funciona nas duas rotas.
+
+**Consequência (dívida registrada)**: essa é uma ramificação manual
+específica para um tenant, não um sistema genérico. Se mais tenants
+precisarem de credencial própria, o padrão certo é uma tabela
+`tenant_llm_config` (já existe no schema desde a migration `0001`, ainda
+sem uso real) guardando qual credencial usar por tenant, com o workflow
+lendo essa configuração em vez de checar `tenant_id` explicitamente node
+a node — evita crescer uma cadeia de IFs. Não fazer essa generalização
+agora (YAGNI) até um segundo tenant precisar do mesmo isolamento.
+Testado e confirmado funcionando: a Golden respondeu corretamente (inclusive
+recusando um relógio, conforme a regra do script) usando a credencial
+nova; o tenant_teste continuou funcionando na credencial compartilhada.
+`pnKnvq3lf1KvjSRz` publicado (versão `1dacd16b-a9e5-4fc7-8b15-eee2b9ea41ba`).
+
+---
+
 **Atualização (2026-09-20)**: o tenant `golden_ouro_prata` passou de duas
 linhas resumidas (COMPANY + POLICY, escritas por mim durante o
 onboarding) para um único documento completo de ~460 linhas — um roteiro
@@ -300,8 +340,23 @@ por 30 minutos após a última intervenção humana e retoma sozinho depois
 disso, sem exigir ação explícita de "devolver para a IA". Ambos os
 workflows publicados e ativos (`tl22TbmEhvxqjpE6` versão
 `562b88f9-f543-4572-a75b-88bdfa9f89ed`; `uBQGxhCMBQEasbLa` versão
-`26bfc9da-97de-4c48-a0c4-36b3b0a8fabf`). Ainda não testado com uma resposta
-humana real — próximo passo de validação.
+`26bfc9da-97de-4c48-a0c4-36b3b0a8fabf`).
+
+**Atualização (2026-09-20) — testado e corrigido**: a validação de ponta a
+ponta (via execução simulada de webhook no CORE-00) revelou um bug real:
+os nós "Checar se é eco do agente" e "Buscar conversa para pausa" usavam
+`SELECT ... LIMIT 1` sem `alwaysOutputData` — quando a consulta não
+encontrava nenhuma linha (o caso comum: mensagem nova, ainda não é eco),
+o nó não emitia nenhum item, e a cadeia inteira parava silenciosamente
+sem erro, sem pausar e sem responder o webhook. Corrigido com o mesmo
+padrão já usado em "Buscar contato excluído" (D023): `SELECT
+COALESCE((SELECT id::text FROM ... LIMIT 1), '') AS id`, que sempre
+retorna uma linha (id vazio quando não encontrado). Testado novamente
+após a correção: pausa dispara corretamente, `conversation_state.status`
+vira `AI_PAUSED`, e a expiração de 30 minutos também foi validada
+artificialmente (backdatando `updated_at` e confirmando que a query do
+CORE-02 volta a tratar como `AI_ACTIVE`). `tl22TbmEhvxqjpE6` publicado
+com a correção (versão `ff906b22-8246-41af-85a0-c4a6b4cc5ed1`).
 
 ---
 
