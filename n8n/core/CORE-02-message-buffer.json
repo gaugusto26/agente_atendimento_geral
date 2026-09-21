@@ -1,0 +1,41 @@
+{
+  "id": "uBQGxhCMBQEasbLa",
+  "name": "CORE-02 Message Buffer",
+  "active": true,
+  "versionId": "26bfc9da-97de-4c48-a0c4-36b3b0a8fabf",
+  "description": "Agrega mensagens picadas (debounce de 4s), evita concorrencia entre disparos, verifica automation_status e aciona o CORE-10 Agent Orchestrator.",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "NXem9dhDiwyfrLaq",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [],
+  "connections": {
+    "Buffer Trigger": {"main": [[{"node": "Aguardar debounce", "type": "main", "index": 0}]]},
+    "Aguardar debounce": {"main": [[{"node": "Buscar mensagem mais recente do buffer", "type": "main", "index": 0}]]},
+    "Buscar mensagem mais recente do buffer": {"main": [[{"node": "Ainda e a mais recente?", "type": "main", "index": 0}]]},
+    "Ainda e a mais recente?": {"main": [[{"node": "Buscar estado da conversa", "type": "main", "index": 0}], [{"node": "Superseded", "type": "main", "index": 0}]]},
+    "Buscar estado da conversa": {"main": [[{"node": "IA ativa?", "type": "main", "index": 0}]]},
+    "IA ativa?": {"main": [[{"node": "Buscar mensagens pendentes", "type": "main", "index": 0}], [{"node": "Pausado", "type": "main", "index": 0}]]},
+    "Buscar mensagens pendentes": {"main": [[{"node": "Agregar mensagens", "type": "main", "index": 0}]]},
+    "Agregar mensagens": {"main": [[{"node": "Marcar buffer consumido", "type": "main", "index": 0}]]},
+    "Marcar buffer consumido": {"main": [[{"node": "CORE-10 Agent Orchestrator", "type": "main", "index": 0}]]}
+  },
+  "nodes": [
+    {"id": "d35707f5-9faa-461a-9b92-33d06d376a13", "name": "Buffer Trigger", "type": "n8n-nodes-base.executeWorkflowTrigger", "typeVersion": 1.2, "position": [240, 300], "parameters": {"inputSource": "jsonExample", "jsonExample": "{\n  \"tenant_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"conversation_id\": \"33333333-3333-3333-3333-333333333333\",\n  \"message_id\": \"44444444-4444-4444-4444-444444444444\"\n}"}},
+    {"id": "863dc2f1-fedd-470a-aa98-50bca349a8d3", "name": "Aguardar debounce", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "position": [540, 300], "parameters": {"resume": "timeInterval", "amount": 4, "unit": "seconds"}, "webhookId": "aa14fa79-946e-4f16-a29d-b1ebf16cd866"},
+    {"id": "11fde145-e590-41fa-a559-6f74cd013b44", "name": "Buscar mensagem mais recente do buffer", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [840, 300], "parameters": {"operation": "executeQuery", "query": "SELECT message_id FROM message_buffer WHERE tenant_id = $1 AND conversation_id = $2 AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1;", "options": {"queryReplacement": "={{ $(\"Buffer Trigger\").item.json.tenant_id }},{{ $(\"Buffer Trigger\").item.json.conversation_id }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "b9bf6e3a-a9b6-4c8c-a836-fb101f8452c1", "name": "Ainda e a mais recente?", "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [1140, 300], "parameters": {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"}, "conditions": [{"leftValue": "={{ $json.message_id }}", "operator": {"type": "string", "operation": "equals"}, "rightValue": "={{ $(\"Buffer Trigger\").item.json.message_id }}"}], "combinator": "and"}}},
+    {"id": "aa0c57f3-1b62-4562-9f04-d2750f31ef63", "name": "Buscar estado da conversa", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [1440, 200], "parameters": {"operation": "executeQuery", "query": "SELECT CASE WHEN status = 'AI_PAUSED' AND updated_at < now() - interval '30 minutes' THEN 'AI_ACTIVE' ELSE status END AS status FROM conversation_state WHERE conversation_id = $1;", "options": {"queryReplacement": "={{ $(\"Buffer Trigger\").item.json.conversation_id }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "55a0d693-2b75-4f39-9f18-1f9b5d6cd43f", "name": "IA ativa?", "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [1740, 200], "parameters": {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"}, "conditions": [{"leftValue": "={{ $json.status }}", "operator": {"type": "string", "operation": "equals"}, "rightValue": "AI_ACTIVE"}], "combinator": "and"}}},
+    {"id": "82cdad0d-9004-4a05-9e40-b7cc7a159d92", "name": "Buscar mensagens pendentes", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [2040, 100], "parameters": {"operation": "executeQuery", "query": "SELECT m.text FROM message_buffer mb JOIN messages m ON m.id = mb.message_id WHERE mb.tenant_id = $1 AND mb.conversation_id = $2 AND mb.consumed_at IS NULL ORDER BY mb.created_at ASC;", "options": {"queryReplacement": "={{ $(\"Buffer Trigger\").item.json.tenant_id }},{{ $(\"Buffer Trigger\").item.json.conversation_id }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "a7f95097-3bbc-4f60-adf1-257401d2da9e", "name": "Agregar mensagens", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2340, 100], "parameters": {"mode": "runOnceForAllItems", "language": "javaScript", "jsCode": "const items = $input.all();\nconst texts = [];\nfor (const item of items) {\n  if (item.json.text) {\n    texts.push(item.json.text);\n  }\n}\nreturn [{ json: { aggregated_text: texts.join(\"\\n\"), message_count: texts.length } }];"}},
+    {"id": "e0f811ec-ab06-4967-8cdf-8eb8e52a7749", "name": "Marcar buffer consumido", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [2640, 100], "parameters": {"operation": "executeQuery", "query": "UPDATE message_buffer SET consumed_at = now() WHERE tenant_id = $1 AND conversation_id = $2 AND consumed_at IS NULL;", "options": {"queryReplacement": "={{ $(\"Buffer Trigger\").item.json.tenant_id }},{{ $(\"Buffer Trigger\").item.json.conversation_id }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "cf98a4de-a0ba-4573-8368-fd1041f07d4a", "name": "CORE-10 Agent Orchestrator", "type": "n8n-nodes-base.executeWorkflow", "typeVersion": 1.3, "position": [2940, 100], "parameters": {"mode": "once", "source": "database", "workflowId": {"__rl": true, "mode": "id", "value": "pnKnvq3lf1KvjSRz"}, "workflowInputs": {"mappingMode": "defineBelow", "value": {"tenant_id": "={{ $(\"Buffer Trigger\").item.json.tenant_id }}", "conversation_id": "={{ $(\"Buffer Trigger\").item.json.conversation_id }}", "aggregated_text": "={{ $(\"Agregar mensagens\").item.json.aggregated_text }}"}, "matchingColumns": [], "schema": [{"id": "tenant_id", "displayName": "tenant_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string"}, {"id": "conversation_id", "displayName": "conversation_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string"}, {"id": "aggregated_text", "displayName": "aggregated_text", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string"}], "attemptToConvertTypes": false, "convertFieldsToString": true}}},
+    {"id": "84cc4a76-3745-4c0d-b53c-5b1ab3717aa5", "name": "Pausado", "type": "n8n-nodes-base.set", "typeVersion": 3.5, "position": [2040, 380], "parameters": {"mode": "manual", "includeOtherFields": false, "assignments": {"assignments": [{"id": "consumed", "name": "consumed", "value": false, "type": "boolean"}, {"id": "reason", "name": "reason", "value": "ai_paused", "type": "string"}]}}},
+    {"id": "22553733-6310-4a83-95cb-6c90e30a5c19", "name": "Superseded", "type": "n8n-nodes-base.set", "typeVersion": 3.5, "position": [1440, 480], "parameters": {"mode": "manual", "includeOtherFields": false, "assignments": {"assignments": [{"id": "consumed", "name": "consumed", "value": false, "type": "boolean"}, {"id": "reason", "name": "reason", "value": "superseded", "type": "string"}]}}}
+  ]
+}

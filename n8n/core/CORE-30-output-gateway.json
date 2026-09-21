@@ -1,0 +1,33 @@
+{
+  "id": "04QWtEuiCRQt0vov",
+  "name": "CORE-30 Output Gateway",
+  "active": true,
+  "versionId": "c7b5b0d5-3a26-4e59-a50d-841617a33c36",
+  "description": "Envia a resposta do agente de volta para a conversa de origem (Chatwoot), resolvendo base_url/account_id/conversation_id a partir do Postgres, nunca hardcoded.",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "NXem9dhDiwyfrLaq",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [],
+  "connections": {
+    "Output Gateway Input": {"main": [[{"node": "Buscar conversa", "type": "main", "index": 0}]]},
+    "Buscar conversa": {"main": [[{"node": "Buscar conta do canal", "type": "main", "index": 0}]]},
+    "Buscar conta do canal": {"main": [[{"node": "Buscar base_url do CRM", "type": "main", "index": 0}]]},
+    "Buscar base_url do CRM": {"main": [[{"node": "Enviar mensagem no Chatwoot", "type": "main", "index": 0}]]},
+    "Enviar mensagem no Chatwoot": {"main": [[{"node": "Atualizar external_id da mensagem", "type": "main", "index": 0}]]},
+    "Atualizar external_id da mensagem": {"main": [[{"node": "Log evento response_sent", "type": "main", "index": 0}]]}
+  },
+  "nodes": [
+    {"id": "b41904f3-12ca-4b12-9821-aa5ae00d04a7", "name": "Output Gateway Input", "type": "n8n-nodes-base.executeWorkflowTrigger", "typeVersion": 1.2, "position": [240, 300], "parameters": {"inputSource": "jsonExample", "jsonExample": "{\n  \"tenant_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"conversation_id\": \"33333333-3333-3333-3333-333333333333\",\n  \"text\": \"Ola! Como posso ajudar?\"\n}"}},
+    {"id": "52a1a479-69fb-4c2e-920c-6de956feb424", "name": "Buscar conversa", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [540, 300], "parameters": {"operation": "executeQuery", "query": "SELECT external_id AS chatwoot_conversation_id, provider FROM conversations WHERE id = $1;", "options": {"queryReplacement": "={{ $json.conversation_id }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "3882721b-c474-47b3-a4fa-06b957522eee", "name": "Buscar conta do canal", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [840, 300], "parameters": {"operation": "executeQuery", "query": "SELECT external_account_id FROM tenant_channels WHERE tenant_id = $1 AND provider = $2 LIMIT 1;", "options": {"queryReplacement": "={{ $(\"Output Gateway Input\").item.json.tenant_id }},{{ $json.provider }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "3817025c-87ac-429a-ba5d-da1a9d649070", "name": "Buscar base_url do CRM", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [1140, 300], "parameters": {"operation": "executeQuery", "query": "SELECT config->>'base_url' AS base_url FROM tenant_crm_config WHERE tenant_id = $1;", "options": {"queryReplacement": "={{ $(\"Output Gateway Input\").item.json.tenant_id }}"}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "36fb39c5-66a1-44f5-8c10-bc33e596b3f9", "name": "Enviar mensagem no Chatwoot", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.5, "position": [1440, 300], "parameters": {"method": "POST", "url": "={{ $(\"Buscar base_url do CRM\").item.json.base_url }}api/v1/accounts/{{ $(\"Buscar conta do canal\").item.json.external_account_id }}/conversations/{{ $(\"Buscar conversa\").item.json.chatwoot_conversation_id }}/messages", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "contentType": "json", "specifyBody": "json", "jsonBody": "={{ { \"content\": $(\"Output Gateway Input\").item.json.text, \"message_type\": \"outgoing\" } }}"}, "credentials": {"httpHeaderAuth": {"id": "LIR7LVUfw6hQvgDh", "name": "Chatwoot Header Auth"}}},
+    {"id": "c4a30f7b-a8cf-4e41-b186-5b59910017cc", "name": "Log evento response_sent", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [1740, 300], "parameters": {"operation": "insert", "schema": {"__rl": true, "mode": "list", "value": "public"}, "table": {"__rl": true, "mode": "list", "value": "agent_events"}, "columns": {"mappingMode": "defineBelow", "value": {"tenant_id": "={{ $(\"Output Gateway Input\").item.json.tenant_id }}", "conversation_id": "={{ $(\"Output Gateway Input\").item.json.conversation_id }}", "event_type": "response_sent", "payload": "={{ { \"chatwoot_message_id\": $(\"Enviar mensagem no Chatwoot\").item.json.id } }}", "trace_id": "={{ $(\"Output Gateway Input\").item.json.tenant_id }}"}, "schema": [{"canBeUsedToMatch": false, "defaultMatch": false, "display": true, "displayName": "tenant_id", "id": "tenant_id", "required": true, "type": "string"}, {"canBeUsedToMatch": false, "defaultMatch": false, "display": true, "displayName": "conversation_id", "id": "conversation_id", "required": false, "type": "string"}, {"canBeUsedToMatch": false, "defaultMatch": false, "display": true, "displayName": "event_type", "id": "event_type", "required": true, "type": "string"}, {"canBeUsedToMatch": false, "defaultMatch": false, "display": true, "displayName": "payload", "id": "payload", "required": false, "type": "object"}, {"canBeUsedToMatch": false, "defaultMatch": false, "display": true, "displayName": "trace_id", "id": "trace_id", "required": true, "type": "string"}]}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "63a5e282-8ce6-432d-8357-025d40dbf7c2", "name": "Atualizar external_id da mensagem", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [1620, 300], "parameters": {"operation": "executeQuery", "options": {"queryReplacement": "={{ [$(\"Enviar mensagem no Chatwoot\").item.json.id, $(\"Output Gateway Input\").item.json.tenant_id, $(\"Output Gateway Input\").item.json.conversation_id] }}"}, "query": "UPDATE messages SET external_id = $1 WHERE id = (SELECT id FROM messages WHERE tenant_id = $2 AND conversation_id = $3 AND direction = 'outgoing' AND external_id IS NULL ORDER BY created_at DESC LIMIT 1);"}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}}
+  ]
+}

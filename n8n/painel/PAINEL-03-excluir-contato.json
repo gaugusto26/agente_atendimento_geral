@@ -1,0 +1,19 @@
+{
+  "id": "LcCCXfkXcG3yfIeS",
+  "name": "PAINEL-03 Excluir Contato",
+  "active": true,
+  "versionId": "8296d261-7f7d-450b-a2a4-0d8493318827",
+  "description": "Formulario interno para adicionar um numero de telefone a lista global de contatos que o agente nunca deve responder.",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "tags": [],
+  "connections": {
+    "Formulario Exclusao": {"main": [[{"node": "Inserir exclusao", "type": "main", "index": 0}]]}
+  },
+  "nodes": [
+    {"id": "28be8a60-5c4c-48cb-a3ce-b5677c53d62e", "name": "Formulario Exclusao", "type": "n8n-nodes-base.formTrigger", "typeVersion": 2.6, "position": [240, 300], "parameters": {"formTitle": "Excluir Contato do Agente", "formDescription": "O numero informado nunca mais recebe resposta automatica do agente, em nenhum tenant. Use o mesmo formato de telefone que aparece no Chatwoot (ex: +5515981772842).", "formFields": {"values": [{"fieldName": "phone", "fieldLabel": "Telefone (formato Chatwoot, ex: +5515981772842)", "fieldType": "text", "requiredField": true}, {"fieldName": "reason", "fieldLabel": "Motivo", "fieldType": "textarea", "requiredField": true}]}, "responseMode": "lastNode", "options": {"appendAttribution": false, "respondWithOptions": {"values": {"respondWith": "text", "formSubmittedText": "Numero excluido com sucesso. O agente nao vai mais responder para esse contato."}}}}, "webhookId": "c69f93f2-f400-47e5-9ef3-78883e0953a5"},
+    {"id": "ef1744d4-2527-400c-a391-03a7e02064d3", "name": "Inserir exclusao", "type": "n8n-nodes-base.postgres", "typeVersion": 2.7, "position": [540, 300], "parameters": {"operation": "insert", "schema": {"__rl": true, "mode": "list", "value": "public"}, "table": {"__rl": true, "mode": "list", "value": "excluded_contacts"}, "columns": {"mappingMode": "defineBelow", "value": {"phone": "={{ $json.phone }}", "reason": "={{ $json.reason }}"}, "schema": [{"id": "phone", "displayName": "phone", "required": true, "defaultMatch": false, "display": true, "canBeUsedToMatch": false, "type": "string"}, {"id": "reason", "displayName": "reason", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": false, "type": "string"}]}}, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}}
+  ]
+}

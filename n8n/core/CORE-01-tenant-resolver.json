@@ -1,0 +1,28 @@
+{
+  "id": "SORheYP8kFYlvQh1",
+  "name": "CORE-01 Tenant Resolver",
+  "active": true,
+  "versionId": "6c958972-c3b4-49b6-8955-776233c88f59",
+  "description": "Resolve tenant_id a partir de provider/account_id/inbox_id, consultando tenant_channels. Sub-workflow chamado pelo CORE-00 Inbound Gateway.",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "NXem9dhDiwyfrLaq",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [],
+  "connections": {
+    "Tenant Resolver Input": {"main": [[{"node": "Buscar canal do tenant", "type": "main", "index": 0}]]},
+    "Buscar canal do tenant": {"main": [[{"node": "Tenant encontrado?", "type": "main", "index": 0}]]},
+    "Tenant encontrado?": {"main": [[{"node": "Resolvido", "type": "main", "index": 0}], [{"node": "Não resolvido", "type": "main", "index": 0}]]}
+  },
+  "nodes": [
+    {"id": "32b31806-c617-401e-bb21-1dd0cfd0f7b8", "name": "Tenant Resolver Input", "type": "n8n-nodes-base.executeWorkflowTrigger", "position": [240, 304], "parameters": {"inputSource": "workflowInputs", "workflowInputs": {"values": [{"name": "provider", "type": "string"}, {"name": "channel", "type": "string"}, {"name": "account_id", "type": "string"}, {"name": "inbox_id", "type": "string"}]}}, "typeVersion": 1.2},
+    {"id": "86d0a0d7-de39-4fa6-8180-5d14b56a0904", "name": "Buscar canal do tenant", "type": "n8n-nodes-base.postgres", "position": [544, 304], "parameters": {"query": "SELECT tc.tenant_id, t.enabled AS tenant_enabled\nFROM tenant_channels tc\nJOIN tenants t ON t.id = tc.tenant_id\nWHERE tc.provider = $1\n  AND tc.enabled = true\n  AND tc.external_account_id = $2\n  AND (tc.external_inbox_id = $3 OR tc.external_inbox_id IS NULL)\nORDER BY tc.external_inbox_id NULLS LAST\nLIMIT 1;", "options": {"queryReplacement": "={{ [$json.provider, $json.account_id, $json.inbox_id] }}"}, "operation": "executeQuery"}, "typeVersion": 2.7, "alwaysOutputData": true, "credentials": {"postgres": {"id": "HWj1IxdP3nT29lom", "name": "agent_platform_postgres"}}},
+    {"id": "21662fac-10f9-4d3a-aa2f-031f69df4574", "name": "Tenant encontrado?", "type": "n8n-nodes-base.if", "position": [848, 304], "parameters": {"conditions": {"options": {"leftValue": "", "caseSensitive": true, "typeValidation": "strict"}, "combinator": "and", "conditions": [{"operator": {"type": "string", "operation": "notEmpty"}, "leftValue": "={{ $json.tenant_id }}", "rightValue": ""}, {"operator": {"type": "boolean", "operation": "true"}, "leftValue": "={{ $json.tenant_enabled }}", "rightValue": true}]}}, "typeVersion": 2.3},
+    {"id": "81ab7166-ffe0-4a04-8397-3486a4133f38", "name": "Resolvido", "type": "n8n-nodes-base.set", "position": [1152, 192], "parameters": {"options": {}, "assignments": {"assignments": [{"id": "tenant-id", "name": "tenant_id", "type": "string", "value": "={{ $json.tenant_id }}"}, {"id": "resolved-true", "name": "resolved", "type": "boolean", "value": true}]}}, "typeVersion": 3.5},
+    {"id": "edd396a7-6c71-4325-ae33-1ab084f9dd33", "name": "Não resolvido", "type": "n8n-nodes-base.set", "position": [1184, 432], "parameters": {"options": {}, "assignments": {"assignments": [{"id": "resolved-false", "name": "resolved", "type": "boolean", "value": false}, {"id": "reason", "name": "reason", "type": "string", "value": "no_tenant_channel_match"}]}}, "typeVersion": 3.5}
+  ]
+}

@@ -66,3 +66,11 @@ estão publicados e ativos no n8n — inventário completo com IDs em
 `docs/ARCHITECTURE_PLAN.md`, seção "Workflows publicados no n8n". Os
 `.md` acima descrevem a convenção de nomes e o desenho ainda planejado
 (CORE-03, CORE-90, CRM-*, LLM-*, demais TOOL-*), não o estado atual.
+
+Cada um desses 9 workflows também tem um `.json` versionado neste repo,
+ao lado do respectivo `.md` (ex.: `core/CORE-00-inbound-gateway-chatwoot.json`,
+`painel/PAINEL-01-onboarding-tenant.json`). É um snapshot exportado via
+MCP (`get_workflow_details`), não sincronizado automaticamente — a fonte
+de verdade continua sendo o workflow publicado no n8n; o `.json` aqui
+serve pra backup/histórico/diff, não pra deploy automatizado. Credenciais
+aparecem só como `{id, name}`, nunca com segredo.

@@ -38,6 +38,8 @@ workflows) — ver `docs/DECISIONS.md#d011`. Banco de dados é PostgreSQL.
   /llm                  — LLM-00 Router + adapters (OpenAI, Anthropic, Google) + Fallback
   /tools                — Calendar, Knowledge, Files, Human Handoff, Tasks
   /agents               — definições de agente (prompt + tools habilitadas) por tipo
+  /painel                — PAINEL-01..03 (formulários n8n para onboarding de
+                           tenant, conhecimento, exclusão de contato — D024)
   /legacy               — referência histórica (workflows do projeto anterior),
                            preservados como estão, nunca importados diretamente
 /scripts               — utilitários de operação/migração

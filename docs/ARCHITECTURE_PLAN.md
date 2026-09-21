@@ -102,10 +102,14 @@ lista única de tudo que está no ar.
 
 Construídos diretamente na instância n8n do usuário via MCP (`n8n Workflow
 SDK` + ferramentas de create/update/validate/execute) — ver D015 em
-`DECISIONS.md`. Não existe `.json` de workflow versionado neste repositório;
-os `.md` em `n8n/core/` (specs + roteiro de validação) continuam como
-documentação de referência do desenho, mas o que roda de verdade é o que
-está publicado no n8n.
+`DECISIONS.md`. Desde 2026-09-21, cada um dos 9 workflows publicados
+também tem um `.json` exportado e versionado neste repositório (ao lado
+do `.md` correspondente em `n8n/core/`, `n8n/tools/` e `n8n/painel/`) —
+é um snapshot manual (`get_workflow_details` via MCP), não sincronizado
+automaticamente a cada mudança; a fonte de verdade continua sendo o
+workflow publicado no n8n, o `.json` é backup/histórico/diff. Os `.md`
+em `n8n/core/` (specs + roteiro de validação) continuam como
+documentação de referência do desenho.
 
 **Validado com execução real**: mensagem enviada por WhatsApp → Chatwoot →
 webhook (assinatura HMAC do Chatwoot presente no header, mas ainda não
