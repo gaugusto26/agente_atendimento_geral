@@ -84,6 +84,10 @@ aceitas para validar o fluxo rapidamente; dívida registrada, não esquecida).
 
 ### Workflows publicados no n8n (`https://n8n.digitalfive.com.br`)
 
+Inventário completo (9 workflows, todos `Published`) — ver também 4.2 para
+os 3 formulários do painel operacional, incluídos aqui pra manter uma
+lista única de tudo que está no ar.
+
 | Workflow | ID | Responsabilidade |
 |---|---|---|
 | CORE-00 Inbound Gateway (Chatwoot) | `tl22TbmEhvxqjpE6` | Webhook → Universal Message → persistência idempotente → enfileira buffer |
@@ -91,6 +95,10 @@ aceitas para validar o fluxo rapidamente; dívida registrada, não esquecida).
 | CORE-02 Message Buffer | `uBQGxhCMBQEasbLa` | Debounce 4s, confirma mensagem mais recente, checa `AI_ACTIVE`, agrega |
 | CORE-10 Agent Orchestrator | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id` |
 | CORE-30 Output Gateway | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
+| TOOL-10 Notificar Especialista Golden | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
+| PAINEL-01 Onboarding de Tenant | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
+| PAINEL-02 Adicionar Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |
+| PAINEL-03 Excluir Contato | `LcCCXfkXcG3yfIeS` | Formulário — insere número em `excluded_contacts` (D023/D024) |
 
 Construídos diretamente na instância n8n do usuário via MCP (`n8n Workflow
 SDK` + ferramentas de create/update/validate/execute) — ver D015 em
@@ -149,13 +157,21 @@ humana real de ponta a ponta (próximo passo).
 
 ## 4.2 Painel operacional (D024)
 
-3 formulários n8n (`n8n Form Trigger`), sem app/serviço novo (mantém D011):
+3 formulários n8n (`n8n Form Trigger`), sem app/serviço novo (mantém D011) —
+IDs e responsabilidades na tabela de inventário em 4.
 
-| Workflow | Função |
-|---|---|
-| PAINEL-01 Onboarding de Tenant | Cria tenant + features + CRM config numa submissão |
-| PAINEL-02 Adicionar Conhecimento | Insere regra/FAQ em `knowledge_documents` de um tenant |
-| PAINEL-03 Excluir Contato | Insere número em `excluded_contacts` (D023) |
+## 4.3 Ferramenta de notificação ao especialista — Golden (D026)
+
+`TOOL-10 Notificar Especialista Golden` — sub-workflow chamado como AI Agent
+tool exclusivamente pelo branch "Assistente (Golden)" do CORE-10 (ver D025
+para o branch por tenant). Quando a IA identifica um lead com avaliação
+pronta pra agendar, aciona a ferramenta com um resumo; o TOOL-10 resolve o
+telefone/nome real do cliente via `conversations`/`contacts` (não confia no
+LLM pra isso) e envia WhatsApp direto ao especialista via API do Chatwoot.
+Específico da Golden, não um sistema genérico de transferência — mesmo
+padrão pragmático de D025 (replicar se um segundo tenant precisar,
+generalizar só com um segundo caso real). ID e detalhes na tabela de
+inventário em 4.
 
 Substitui o fluxo manual "eu escrevo SQL, Hermes roda" para essas 3
 operações recorrentes. `tenant_channels` (canal/inbox) continua fora do

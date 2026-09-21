@@ -60,5 +60,9 @@ contratos em `/schemas` e `/config`.
 - Fase 2 do plano (`docs/ARCHITECTURE_PLAN.md`) é o primeiro fluxo real a
   implementar aqui: Chatwoot → CORE-00..30, sem Calendar e sem RAG.
 
-Esta pasta ainda não tem workflows implementados — ver "Status" no
-`README.md` da raiz do projeto.
+Workflows do Core (CORE-00, 01, 02, 10, 30), o painel operacional
+(PAINEL-01/02/03) e a primeira ferramenta de tenant (TOOL-10, Golden) já
+estão publicados e ativos no n8n — inventário completo com IDs em
+`docs/ARCHITECTURE_PLAN.md`, seção "Workflows publicados no n8n". Os
+`.md` acima descrevem a convenção de nomes e o desenho ainda planejado
+(CORE-03, CORE-90, CRM-*, LLM-*, demais TOOL-*), não o estado atual.
