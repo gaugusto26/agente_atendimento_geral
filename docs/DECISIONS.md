@@ -607,3 +607,21 @@ fato dentro de uma conversa real/simulada de ponta a ponta via
 `Assistente (Golden)` (só o sub-workflow foi testado diretamente até
 agora), e confirmar com o usuário que as mensagens de teste chegaram no
 WhatsApp do especialista.
+
+---
+
+**Atualização (2026-09-21)**: usuário pediu reforço no tom de voz —
+mensagens mais curtas e humanizadas, e proibição total de emojis. Seção
+3 do script reescrita com regras mais concretas (limite de 2-3 frases
+por mensagem, evitar repetir de volta o que o cliente disse, variar
+aberturas de mensagem em vez de repetir "Entendi!"/"Claro!"/"Sem
+problema!", e a regra 6 mudou de "emojis com moderação" para proibição
+explícita). Todos os exemplos de mensagem do script (seções 4, 5, 6, 7,
+8, 9, 10, 15) tiveram o emoji 😊 removido, para o texto não contradizer
+a própria regra nova — um agente seguindo literalmente os exemplos
+continuaria usando emoji se os exemplos não fossem corrigidos junto.
+Atualizado via o mesmo padrão limpo do D026 (Set node com o texto como
+string JSON direta + `updateNodeParameters` com `replace: true`, sem
+Base64/Code node). Verificado por query direta no Postgres após a
+atualização: a regra de proibição está presente e nenhum emoji restou
+no texto salvo.
