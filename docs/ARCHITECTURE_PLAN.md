@@ -100,7 +100,7 @@ atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
 | CORE-30 · Envia Resposta ao Cliente (Chatwoot) | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
 | CORE-40 · Envia Follow-ups Agendados | `Bo9VJIm7M436jpmC` | Schedule Trigger (30 min) — dispara cadências de follow-up vencidas ou cancela se o cliente já respondeu (D032) |
 | TOOL-10 · Avisar Especialista Golden (WhatsApp) | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
-| TOOL-11 · Gerar Áudio da Resposta (EdgeGo Voice) | `Nz8vqqYDRpJbyrsm` | Sub-workflow reutilizável — recebe uma ou mais mensagens de texto e devolve um áudio Opus por texto via EdgeGo Voice (D033, substituiu o Gemini TTS do D031); ainda **não plugado** no pipeline principal |
+| TOOL-11 · Gerar Áudio da Resposta (EdgeGo Voice) | `Nz8vqqYDRpJbyrsm` | Sub-workflow reutilizável — recebe uma ou mais mensagens de texto e devolve um áudio Opus por texto via EdgeGo Voice (D033, substituiu o Gemini TTS do D031); plugado no pipeline principal desde D035 (roteamento determinístico "áudio entra, áudio sai", chamado pelo CORE-10) |
 | TOOL-12 · Agendar Follow-up | `uUeP75hDpxJsZ3nV` | AI Agent tool (CORE-10, ambos os branches) — agenda cadência de 4 lembretes (5h/12h/24h/36h) + 1 encerramento (48h) quando o cliente sinaliza que vai responder depois (D032/D034) |
 | PAINEL-01 · Cadastrar Empresa Nova | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
 | PAINEL-02 · Adicionar Regra/Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |
@@ -169,6 +169,13 @@ humana real de ponta a ponta (próximo passo).
   de telefone lá dentro faz o `CORE-00` ignorar a mensagem por completo,
   sem tocar em tenant/banco/agente. Gerenciável só com SQL (base pro
   futuro painel), sem mudança de workflow.
+- **Áudio entra, áudio sai (D035)** — `CORE-02` detecta se o lote
+  bufferizado tem mensagem de áudio (`input_type`), `CORE-10` decide
+  deterministicamente (não é o LLM que decide) se chama o `TOOL-11` pra
+  gerar a resposta em áudio antes de acionar o `CORE-30`, que agora
+  envia texto ou áudio (multipart) ao Chatwoot conforme `channel_type`.
+  Fallback automático pra texto se a geração de áudio falhar — cliente
+  nunca fica sem resposta. Vale para todos os tenants.
 
 ## 4.2 Painel operacional (D024)
 

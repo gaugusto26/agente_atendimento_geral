@@ -1039,3 +1039,96 @@ a partir da chamada) antes de publicar.
 **Consequência**: CORE-40 não precisou de nenhuma mudança — a lógica de
 varredura/cancelamento/envio lá é genérica em relação ao número de
 etapas e à unidade de tempo, só olha `scheduled_for <= now()`.
+
+---
+
+## D035 — Áudio entra, áudio sai: TOOL-11 plugado no pipeline principal (roteamento determinístico)
+
+**Contexto**: TOOL-11 (D031/D033) gerava áudio da resposta mas nunca foi
+conectado ao fluxo real — a IA sempre respondia em texto, mesmo quando o
+cliente mandava áudio. Usuário pediu, como regra fixa: *"Audio envia
+audio, texto envia texto!"* — se o cliente manda áudio, a resposta
+também deve ser áudio; se manda texto, resposta em texto.
+
+**Decisão de design**: essa regra é **determinística**, calculada a
+partir do `type` da mensagem desde o `CORE-02` e carregada como
+`input_type` até o `CORE-10` — **não é o LLM que decide chamar uma
+tool** pra gerar áudio. Uma tool call é probabilística (o modelo pode
+esquecer de chamar); o formato de saída (texto vs. áudio) precisa ser
+sempre respeitado, então fica fora do julgamento do LLM, no mesmo
+espírito do tratamento determinístico de tipo/formato já usado no D030
+(transcrição) e D027 (placeholder por tipo de mídia).
+
+**Implementação, nos 3 workflows**:
+
+1. **`CORE-02` ("Agregar mensagens")**: além de montar `aggregated_text`,
+   agora também detecta se alguma mensagem do lote bufferizado tem
+   `type === 'audio'` e manda `input_type: 'audio'|'text'` pro `CORE-10`
+   junto com `aggregated_text` (lote com mistura de áudio + texto ainda
+   conta como `audio` — basta uma mensagem de áudio no lote).
+2. **`CORE-10`**: depois de "Salvar resposta como mensagem" (a IA já
+   gerou o texto normalmente, sem nenhuma mudança no Assistente/branch
+   Golden), um IF **"É audio de entrada?"** olha `input_type` (nunca o
+   conteúdo da resposta):
+   - Se `audio`: chama **"Gerar audio da resposta"** (Execute Workflow →
+     TOOL-11) passando o texto que a IA já gerou como `texts: [texto]`.
+     Um segundo IF **"Audio gerado?"** checa `audio_generated` — se
+     `true`, chama **"CORE-30 Output Gateway (audio)"** com
+     `channel_type: 'audio'` (o binário do TOOL-11 flui automaticamente
+     no item, não precisa ser passado como campo); se `false` (TOOL-11
+     falhou — serviço fora do ar etc.), **fallback pro texto normal**
+     via **"CORE-30 Output Gateway (fallback texto)"** — nunca deixa o
+     cliente sem resposta só porque a geração de áudio falhou.
+   - Se `text`: segue o caminho original inalterado, só que agora
+     passando `channel_type: 'text'` explicitamente pro CORE-30.
+3. **`CORE-30`**: ganhou `channel_type` no trigger e um IF **"É
+   audio?"**:
+   - Se `audio`: **"Preparar envio de audio"** (Code) reanexa o binário
+     original (`$("Output Gateway Input").item.binary`) — os 3 nós
+     Postgres anteriores (conversa/conta/base_url) sobrescrevem o
+     binário do item, mesmo padrão de reanexação já usado no TOOL-11 —
+     e **"Enviar audio no Chatwoot"** manda a mensagem como
+     `multipart/form-data` (`attachments[]` via `formBinaryData` +
+     `message_type: outgoing`), não JSON, porque a API do Chatwoot exige
+     multipart pra anexo.
+   - Se `text`: segue o caminho original ("Enviar mensagem no
+     Chatwoot", JSON), sem nenhuma mudança.
+   - Os dois caminhos convergem num novo nó **"Mensagem enviada no
+     Chatwoot"** (Code) que normaliza o `id` retornado por qualquer um
+     dos dois envios num campo estável (`chatwoot_message_id`) — existe
+     porque agora há dois nós de envio possíveis, e "Atualizar
+     external_id da mensagem"/"Log evento response_sent" (D021, crítico
+     pra detecção de eco no CORE-00) precisam de uma referência única,
+     não ambígua entre os dois.
+
+**Duas incertezas técnicas validadas antes de construir o pipeline
+real** (ambas confirmadas com testes isolados, antes de qualquer
+mudança nos workflows de produção):
+1. Se o corpo HTTP `multipart/form-data` do n8n realmente anexa dado
+   binário corretamente pro Chatwoot — confirmado com uma chamada real
+   contra uma conversa sintética inexistente (404 limpo do Chatwoot,
+   não erro de parsing da requisição, prova que o multipart foi bem
+   formado).
+2. Se dado binário sobrevive ao ser passado como entrada de um
+   sub-workflow via nó Execute Workflow, inclusive em múltiplos saltos
+   (`CORE-10` → `TOOL-11` → `CORE-30`) — confirmado com um teste
+   isolado dedicado antes de plugar no fluxo real.
+
+**Testado de ponta a ponta** antes de publicar: execução real com LLM
+de verdade (resposta gerada de fato) e geração de áudio real (EdgeGo
+Voice, D033) contra dados de conversa sintéticos (`external_id` falso) —
+confirmando cada etapa (decisão de roteamento, chamada ao TOOL-11,
+binário atravessando os dois saltos de Execute Workflow, montagem do
+multipart). Só a entrega final no Chatwoot não pôde ser confirmada com
+sucesso real, porque a conversa era sintética (404 esperado, mesma
+prática de teste seguro usada em toda a sessão).
+
+**Consequência**: "áudio entra, áudio sai" está ativo em produção para
+todos os tenants (a lógica não é específica de nenhum tenant). Se
+`EdgeGo Voice` ficar indisponível, o cliente que mandou áudio recebe a
+resposta em texto (fallback), nunca fica sem resposta nenhuma. `CORE-02`
+(`uBQGxhCMBQEasbLa`, versão `8945c232-c40b-47d3-80fc-fd46015a7f17`),
+`CORE-10` (`pnKnvq3lf1KvjSRz`, versão
+`a93f257b-86ed-4ec6-a8e7-32ed256b91e0`) e `CORE-30`
+(`04QWtEuiCRQt0vov`, versão `1637d7a2-ca52-40b3-9a48-2ebe43a2a8ef`)
+publicados.
