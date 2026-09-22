@@ -834,3 +834,65 @@ transcrição bem-sucedida, imagem, vídeo, arquivo).
 **Pendência**: envio de áudio (texto→voz) na resposta da IA ainda não
 existe — ficou combinado avaliar ElevenLabs (melhor qualidade de voz em
 PT-BR) quando essa etapa for priorizada.
+
+## D031 — TOOL-11: gera áudio da resposta via Gemini TTS (sub-workflow, ainda não plugado)
+
+**Contexto**: usuário pediu um fluxo "como o da LLM que cria a mensagem"
+(CORE-10) mas que aceitasse mais de uma mensagem — pra gerar áudio da
+resposta da IA (texto→voz), já que a resposta pode vir em vários balões
+curtos (regra de tom de voz humanizado). Perguntei se seguia com Gemini
+(HTTP cru, sem credencial nova, mais frágil) ou trocava pra ElevenLabs
+(node pronto, melhor voz PT-BR, mas credencial nova) — usuário escolheu
+Gemini por ora.
+
+**Descoberta técnica**: o node nativo do Google Gemini no n8n
+(`@n8n/n8n-nodes-langchain.googleGemini`) só expõe `audio: analyze` e
+`audio: transcribe` — **não tem operação de geração de áudio (TTS)**.
+Só existe TTS pronto no n8n via node do MiniMax (`audio:
+textToSpeech`), que é outro provedor. Pra usar Gemini TTS de fato, é
+preciso chamar a API REST do Google direto (`generateContent` com
+`responseModalities: [AUDIO]`).
+
+**Decisão**: criado `TOOL-11 · Gerar Áudio da Resposta (Gemini TTS)`
+(`Nz8vqqYDRpJbyrsm`, pasta TOOL), no mesmo padrão de sub-workflow
+chamável do CORE-10 (Execute Workflow Trigger → processamento →
+saída):
+1. **Gerar Audio Input** — aceita `{ tenant_id, conversation_id, texts:
+   string[] }` (uma ou mais mensagens, por isso "aceita mais de um").
+2. **Expandir textos** — Code node vira um item por texto.
+3. **Gerar audio (Gemini TTS)** — HTTP Request direto pra
+   `generativelanguage.googleapis.com`, modelo
+   `gemini-2.5-flash-preview-tts`, voz `Kore`, reaproveitando a
+   credencial `googlePalmApi` já existente (`aAcNvv8DFFBT08Sy`) via
+   `authentication: predefinedCredentialType` — **sem credencial
+   nova**. `onError: continueRegularOutput`: se um texto falhar, os
+   outros da lista continuam gerando normalmente.
+4. **Converter PCM para WAV** — Gemini devolve PCM cru em base64 (taxa
+   de amostragem embutida no `mimeType`, ex. `rate=24000`), não um
+   arquivo pronto. Code node monta um cabeçalho WAV de 44 bytes na mão
+   e concatena com o PCM, virando um binário `audio/wav` reproduzível.
+
+**Bug encontrado e corrigido durante o teste**: depois do node HTTP,
+`$json` passa a ser a resposta da API do Gemini — os campos originais
+(`tenant_id`, `conversation_id`, `text`) que estavam no item antes da
+chamada HTTP somem do `$json` (a chamada HTTP substitui o item, não
+mescla). O "Converter PCM para WAV" tinha que buscar esses 3 campos de
+volta em `$("Expandir textos").item.json`, não em `$json`. Testado
+isoladamente (2 textos, os 2 geraram WAV válido ~150-200KB cada) antes
+de publicar.
+
+**Escopo desta entrega**: só a geração do áudio. **Não plugado** no
+CORE-10/CORE-30 — o workflow existe e funciona isoladamente, mas
+ninguém chama ele em produção ainda. Fica pra quando o usuário decidir
+como e quando enviar áudio de fato ao cliente.
+
+**Dívidas registradas**:
+- Sem credencial nova (bom), mas HTTP cru é mais frágil a mudança de
+  contrato da API do Google do que um node dedicado seria.
+- Saída é WAV; nota de voz nativa do WhatsApp normalmente espera
+  ogg/opus — pode ser necessário converter antes de enviar via
+  Chatwoot, dependendo de como o Chatwoot/WhatsApp Business API tratam
+  anexo de áudio que não é ogg/opus. Não testado end-to-end com envio
+  real ainda.
+- ElevenLabs continua como alternativa de melhor qualidade, avaliada
+  e adiada a pedido do usuário.
