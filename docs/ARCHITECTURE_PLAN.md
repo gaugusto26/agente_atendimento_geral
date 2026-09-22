@@ -101,7 +101,7 @@ atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
 | CORE-40 · Envia Follow-ups Agendados | `Bo9VJIm7M436jpmC` | Schedule Trigger (30 min) — dispara cadências de follow-up vencidas ou cancela se o cliente já respondeu (D032) |
 | TOOL-10 · Avisar Especialista Golden (WhatsApp) | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
 | TOOL-11 · Gerar Áudio da Resposta (EdgeGo Voice) | `Nz8vqqYDRpJbyrsm` | Sub-workflow reutilizável — recebe uma ou mais mensagens de texto e devolve um áudio Opus por texto via EdgeGo Voice (D033, substituiu o Gemini TTS do D031); ainda **não plugado** no pipeline principal |
-| TOOL-12 · Agendar Follow-up | `uUeP75hDpxJsZ3nV` | AI Agent tool (CORE-10, ambos os branches) — agenda cadência de 3 lembretes + 1 encerramento quando o cliente sinaliza que vai responder depois (D032) |
+| TOOL-12 · Agendar Follow-up | `uUeP75hDpxJsZ3nV` | AI Agent tool (CORE-10, ambos os branches) — agenda cadência de 4 lembretes (5h/12h/24h/36h) + 1 encerramento (48h) quando o cliente sinaliza que vai responder depois (D032/D034) |
 | PAINEL-01 · Cadastrar Empresa Nova | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
 | PAINEL-02 · Adicionar Regra/Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |
 | PAINEL-03 · Excluir Contato do Agente | `LcCCXfkXcG3yfIeS` | Formulário — insere número em `excluded_contacts` (D023/D024) |

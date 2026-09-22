@@ -1000,3 +1000,42 @@ válido (~17KB cada) com metadata preservada corretamente.
 a questão do formato. ElevenLabs não é mais necessário como alternativa,
 já que o EdgeGo Voice é gratuito e auto-hospedado. Fica pendente decidir
 quando/como integrar isso ao fluxo de resposta de fato.
+
+## D034 — Cadência de follow-up: de dias pra horas, e de 4 pra 5 etapas
+
+**Contexto**: usuário pediu pra diminuir o tempo da cadência do D032
+(que usava dias) pra: **5h sem resposta, 12h, 24h, 36h e 48h como
+ultimato** — 4 lembretes + 1 encerramento, mesmas regras de
+cancelamento de antes (cliente respondeu, ou disse que não tem mais
+interesse — qualquer mensagem `incoming` já cancela a cadência inteira,
+não precisa checar o conteúdo).
+
+**Decisão**:
+1. **Migration `0007_scheduled_followups_five_steps.sql`** — o `CHECK
+   (step BETWEEN 1 AND 4)` da migration 0006 virou `BETWEEN 1 AND 5`
+   (`ALTER TABLE ... DROP CONSTRAINT ... ADD CONSTRAINT`). Aplicada no
+   banco real via workflow temporário (arquivado depois).
+2. **TOOL-12 "Montar cadencia"** reescrito pelo usuário diretamente no
+   n8n: os 5 passos agora usam `offsetHours` (5, 12, 24, 36, 48) a
+   partir do momento em que a ferramenta é chamada, em vez de
+   `offsetDays` calculado sobre um `dias_para_primeiro_contato` variável
+   escolhido pela IA.
+3. **Removido `dias_para_primeiro_contato`** dos dois lugares que
+   dependiam dele (ficaram órfãos depois da mudança acima): o
+   `jsonExample` do trigger "Agendar Follow-up Input" no TOOL-12, e o
+   `$fromAI('dias_para_primeiro_contato', ...)` na ferramenta "Agendar
+   Follow-up Tool" do CORE-10 — a IA agora só decide o `resumo`
+   (motivo, só para auditoria); não decide mais quando começar, já que
+   os horários são fixos a partir da chamada.
+4. Textos que citavam "3 lembretes"/"2 dias" atualizados pra "4
+   lembretes"/horas em: descrição do TOOL-12, texto de confirmação
+   (`Confirmar agendamento`), sticky note do TOOL-12, e a descrição da
+   ferramenta no CORE-10.
+
+**Testado**: cadência de teste numa conversa real da Golden (dados
+apagados depois) confirmando os 5 offsets corretos (~5h/12h/24h/36h/48h
+a partir da chamada) antes de publicar.
+
+**Consequência**: CORE-40 não precisou de nenhuma mudança — a lógica de
+varredura/cancelamento/envio lá é genérica em relação ao número de
+etapas e à unidade de tempo, só olha `scheduled_for <= now()`.
