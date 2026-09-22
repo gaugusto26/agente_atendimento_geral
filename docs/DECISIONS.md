@@ -896,3 +896,58 @@ como e quando enviar áudio de fato ao cliente.
   real ainda.
 - ElevenLabs continua como alternativa de melhor qualidade, avaliada
   e adiada a pedido do usuário.
+
+## D032 — Cadência de follow-up automática (TOOL-12 + CORE-40 + tabela nova)
+
+**Contexto**: usuário pediu um "tool de follow-up" — a IA (CORE-10) precisa
+conseguir reengajar um cliente que sumiu da conversa (ex.: "vou pensar",
+"te aviso depois") sem precisar de intervenção manual. Desenho fechado com
+o usuário: **3 lembretes ("cutucões") + 1 mensagem final de encerramento
+("ultimato")**, parando automaticamente se o cliente responder ou se um
+humano assumir a conversa.
+
+**Decisão — arquitetura em 3 peças**:
+
+1. **Migration `0006_scheduled_followups.sql`** — tabela nova
+   `scheduled_followups` (`tenant_id`, `conversation_id`, `cadence_id`
+   agrupando as 4 etapas de uma mesma cadência, `step` 1-4, `kind`
+   `nudge`/`ultimatum`, `reason` só para auditoria, `message` já pronto
+   pra envio, `scheduled_for`, `status` `pending`/`sent`/`canceled`).
+   Aplicada no banco real via workflow temporário (arquivado depois).
+
+2. **`TOOL-12 · Agendar Follow-up`** (`uUeP75hDpxJsZ3nV`, pasta TOOL) —
+   AI Agent tool plugada em **ambos** os branches do CORE-10 (Assistente
+   padrão e Assistente Golden, diferente do TOOL-10 que é exclusivo da
+   Golden — reengajamento é comportamento genérico, não específico de
+   tenant). A IA só decide **quando** começar
+   (`dias_para_primeiro_contato`, via `$fromAI`) e **por quê**
+   (`resumo`, só pra auditoria — nunca vai pro cliente). O texto de cada
+   uma das 4 etapas é fixo/padronizado no código do workflow, não escrito
+   pela IA por etapa — evita mensagens de cobrança mal calibradas e
+   mantém tom consistente. Intervalo fixo de 2 dias entre etapas
+   (`baseDays`, `baseDays+2`, `+4`, `+6`).
+
+3. **`CORE-40 · Envia Follow-ups Agendados`** (`Bo9VJIm7M436jpmC`, pasta
+   CORE) — Schedule Trigger a cada 30 min. Pra cada etapa vencida:
+   cancela a **cadência inteira** (todas as etapas `pending` do mesmo
+   `cadence_id`, não só a etapa atual) se o cliente mandou mensagem
+   `incoming` depois que a etapa foi criada, ou se a conversa está
+   `HUMAN_ACTIVE`/`CLOSED`; senão, envia de verdade via CORE-30 (mesmo
+   canal das respostas normais da IA) e marca como `sent`.
+
+**Testado antes de publicar**: TOOL-12 isolado (4 etapas inseridas
+corretamente numa conversa real da Golden, depois apagadas) e CORE-40
+com dados 100% sintéticos (2 conversas fake — uma com resposta simulada
+depois do agendamento, outra sem) confirmando que a rota de cancelamento
+e a rota de envio disparam certo, sem tocar em nenhuma conversa real.
+
+**Consequências / dívidas registradas**:
+- Se o CORE-30 falhar no meio do envio dentro do CORE-40 (ex.: Chatwoot
+  fora do ar), a etapa fica `pending` e é retentada no próximo ciclo de
+  30 min — correto pra falha transitória, mas se o envio for bem
+  sucedido e algo falhar depois disso (raro), pode reenviar no próximo
+  ciclo. Não tratado.
+- Intervalo entre etapas (2 dias) e frequência de varredura do CORE-40
+  (30 min) estão fixos no código, não configuráveis por tenant ainda —
+  generalizar só se um segundo tenant precisar de cadência diferente
+  (mesmo raciocínio YAGNI do D025).

@@ -84,7 +84,7 @@ aceitas para validar o fluxo rapidamente; dívida registrada, não esquecida).
 
 ### Workflows publicados no n8n (`https://n8n.digitalfive.com.br`)
 
-Inventário completo (10 workflows, todos `Published`) — ver também 4.2 para
+Inventário completo (12 workflows, todos `Published`) — ver também 4.2 para
 os 3 formulários do painel operacional, incluídos aqui pra manter uma
 lista única de tudo que está no ar. Nomes e organização em pastas
 atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
@@ -98,8 +98,10 @@ atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
 | CORE-02 · Junta Mensagens Picadas (Buffer) | `uBQGxhCMBQEasbLa` | Debounce 4s, confirma mensagem mais recente, checa `AI_ACTIVE`, agrega |
 | CORE-10 · IA Gera a Resposta (Agente) | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id` |
 | CORE-30 · Envia Resposta ao Cliente (Chatwoot) | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
+| CORE-40 · Envia Follow-ups Agendados | `Bo9VJIm7M436jpmC` | Schedule Trigger (30 min) — dispara cadências de follow-up vencidas ou cancela se o cliente já respondeu (D032) |
 | TOOL-10 · Avisar Especialista Golden (WhatsApp) | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
 | TOOL-11 · Gerar Áudio da Resposta (Gemini TTS) | `Nz8vqqYDRpJbyrsm` | Sub-workflow reutilizável — recebe uma ou mais mensagens de texto e devolve um WAV por texto via Gemini TTS; ainda **não plugado** no pipeline principal (D031) |
+| TOOL-12 · Agendar Follow-up | `uUeP75hDpxJsZ3nV` | AI Agent tool (CORE-10, ambos os branches) — agenda cadência de 3 lembretes + 1 encerramento quando o cliente sinaliza que vai responder depois (D032) |
 | PAINEL-01 · Cadastrar Empresa Nova | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
 | PAINEL-02 · Adicionar Regra/Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |
 | PAINEL-03 · Excluir Contato do Agente | `LcCCXfkXcG3yfIeS` | Formulário — insere número em `excluded_contacts` (D023/D024) |
