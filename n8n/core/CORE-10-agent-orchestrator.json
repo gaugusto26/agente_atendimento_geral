@@ -1,6 +1,6 @@
 {
   "id": "pnKnvq3lf1KvjSRz",
-  "name": "CORE-10 Agent Orchestrator",
+  "name": "CORE-10 · IA Gera a Resposta (Agente)",
   "active": true,
   "versionId": "2f904e73-9e72-406c-bf23-e3b0a47a12b4",
   "description": "Chama o LLM (AI Agent + OpenAI Chat Model + memoria Postgres por sessao tenant:conversation), salva a resposta e aciona o CORE-30 Output Gateway.",

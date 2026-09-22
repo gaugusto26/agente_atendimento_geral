@@ -86,19 +86,27 @@ aceitas para validar o fluxo rapidamente; dívida registrada, não esquecida).
 
 Inventário completo (9 workflows, todos `Published`) — ver também 4.2 para
 os 3 formulários do painel operacional, incluídos aqui pra manter uma
-lista única de tudo que está no ar.
+lista única de tudo que está no ar. Nomes e organização em pastas
+atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
+(pastas: "Fluxo Principal (CORE)", "Ferramentas dos Agentes (TOOL)",
+"Painel Operacional (PAINEL)", todas dentro de "Agente de atendimento IA").
 
-| Workflow | ID | Responsabilidade |
+| Workflow (nome atual no n8n) | ID | Responsabilidade |
 |---|---|---|
-| CORE-00 Inbound Gateway (Chatwoot) | `tl22TbmEhvxqjpE6` | Webhook → Universal Message → persistência idempotente → enfileira buffer |
-| CORE-01 Tenant Resolver | `SORheYP8kFYlvQh1` | Resolve `tenant_id` a partir de provider/account/inbox |
-| CORE-02 Message Buffer | `uBQGxhCMBQEasbLa` | Debounce 4s, confirma mensagem mais recente, checa `AI_ACTIVE`, agrega |
-| CORE-10 Agent Orchestrator | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id` |
-| CORE-30 Output Gateway | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
-| TOOL-10 Notificar Especialista Golden | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
-| PAINEL-01 Onboarding de Tenant | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
-| PAINEL-02 Adicionar Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |
-| PAINEL-03 Excluir Contato | `LcCCXfkXcG3yfIeS` | Formulário — insere número em `excluded_contacts` (D023/D024) |
+| CORE-00 · Recebe Mensagem do Cliente (Chatwoot) | `tl22TbmEhvxqjpE6` | Webhook → Universal Message → persistência idempotente → enfileira buffer |
+| CORE-01 · Identifica a Empresa (Tenant) | `SORheYP8kFYlvQh1` | Resolve `tenant_id` a partir de provider/account/inbox |
+| CORE-02 · Junta Mensagens Picadas (Buffer) | `uBQGxhCMBQEasbLa` | Debounce 4s, confirma mensagem mais recente, checa `AI_ACTIVE`, agrega |
+| CORE-10 · IA Gera a Resposta (Agente) | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id` |
+| CORE-30 · Envia Resposta ao Cliente (Chatwoot) | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
+| TOOL-10 · Avisar Especialista Golden (WhatsApp) | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
+| PAINEL-01 · Cadastrar Empresa Nova | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
+| PAINEL-02 · Adicionar Regra/Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |
+| PAINEL-03 · Excluir Contato do Agente | `LcCCXfkXcG3yfIeS` | Formulário — insere número em `excluded_contacts` (D023/D024) |
+
+Nos textos abaixo e no resto da documentação, os workflows continuam
+sendo referenciados pelo código técnico (ex.: "CORE-10", "TOOL-10") —
+só o nome de exibição no n8n ficou mais descritivo; código/IDs não
+mudaram.
 
 Construídos diretamente na instância n8n do usuário via MCP (`n8n Workflow
 SDK` + ferramentas de create/update/validate/execute) — ver D015 em
@@ -205,12 +213,15 @@ HMAC do webhook do Chatwoot.
   conferir `autoAssignedCredentials` e corrigir por ID (ver D016). Um
   esquecimento aqui faz um workflow novo ler/escrever no banco errado
   silenciosamente.
-- **Workflows vivem só no n8n, não em Git** — sem diff textual, sem review
-  de PR sobre mudança de workflow, sem rollback via `git revert` (só via
-  histórico de versão do próprio n8n, `get_workflow_history`/
-  `restore_workflow_version`). Aceito conscientemente por D011, mas exige
-  disciplina operacional (nomear bem cada `versionName`/`versionDescription`
-  ao publicar).
+- **Workflows rodam só no n8n, snapshot em Git não é automático** — desde
+  2026-09-21 cada workflow tem um `.json` versionado no repo (ver seção 4),
+  mas é um snapshot manual, não sincronizado a cada mudança; ainda não há
+  diff textual automático nem review de PR sobre mudança de workflow, e
+  rollback continua sendo via histórico de versão do próprio n8n
+  (`get_workflow_history`/`restore_workflow_version`), não `git revert`.
+  Aceito conscientemente por D011, exige disciplina operacional (nomear
+  bem cada `versionName`/`versionDescription` ao publicar, e lembrar de
+  re-exportar o `.json` depois de mudanças relevantes).
 - **Sem LLM Router/fallback** (D017): uma indisponibilidade do único
   provider configurado (billing, rate limit) derruba o agente inteiro sem
   degradação graciosa.
@@ -230,6 +241,18 @@ HMAC do webhook do Chatwoot.
   todo tenant. Corrigido no `CORE-30` (grava o `external_id` real do
   Chatwoot na mensagem logo após o envio). Conversas afetadas
   reativadas manualmente.
+- **Mensagem sem texto (áudio/imagem) travava a IA sem responder nada ao
+  cliente — bug crítico, corrigido** (D027, achado em 2026-09-22 ao
+  analisar logs de erro de execução): `aggregated_text` vazio (mensagem
+  só de áudio/imagem/vídeo, sem legenda) fazia a API do Gemini rejeitar
+  o request com 400, travando a cadeia sem nenhum fallback — o cliente
+  nunca recebia resposta. Ativo em produção desde pelo menos
+  2026-09-20 18:02, afetou 6 clientes reais da Golden até ser
+  descoberto e corrigido em 2026-09-22. Corrigido no `CORE-02`
+  (placeholder textual por tipo de mídia quando o texto vem vazio).
+  Nenhum alerta automático existia pra detectar isso mais cedo — falta
+  configurar `errorWorkflow` nos workflows core pra notificar o operador
+  quando uma execução falhar (dívida nova).
 - **Credencial de LLM isolada por tenant só existe para a Golden** (D025)
   — implementado como ramificação manual no CORE-10, não como sistema
   genérico. Se mais tenants precisarem, vale generalizar via

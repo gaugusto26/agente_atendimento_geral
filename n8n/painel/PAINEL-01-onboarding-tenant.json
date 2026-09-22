@@ -1,6 +1,6 @@
 {
   "id": "wvIJS4f12b0AYVYt",
-  "name": "PAINEL-01 Onboarding de Tenant",
+  "name": "PAINEL-01 · Cadastrar Empresa Nova",
   "active": true,
   "versionId": "d7d231c6-3f45-4edd-a35d-d3ab952a9b8a",
   "description": "Formulario interno para cadastrar uma nova empresa (tenant) na plataforma: nome, chave, timezone, URL do Chatwoot e features. Canal (WhatsApp/inbox) ainda precisa ser configurado a parte apos a primeira mensagem real.",

@@ -1,6 +1,6 @@
 {
   "id": "04QWtEuiCRQt0vov",
-  "name": "CORE-30 Output Gateway",
+  "name": "CORE-30 · Envia Resposta ao Cliente (Chatwoot)",
   "active": true,
   "versionId": "c7b5b0d5-3a26-4e59-a50d-841617a33c36",
   "description": "Envia a resposta do agente de volta para a conversa de origem (Chatwoot), resolvendo base_url/account_id/conversation_id a partir do Postgres, nunca hardcoded.",

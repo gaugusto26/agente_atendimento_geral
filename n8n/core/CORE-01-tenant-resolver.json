@@ -1,6 +1,6 @@
 {
   "id": "SORheYP8kFYlvQh1",
-  "name": "CORE-01 Tenant Resolver",
+  "name": "CORE-01 · Identifica a Empresa (Tenant)",
   "active": true,
   "versionId": "6c958972-c3b4-49b6-8955-776233c88f59",
   "description": "Resolve tenant_id a partir de provider/account_id/inbox_id, consultando tenant_channels. Sub-workflow chamado pelo CORE-00 Inbound Gateway.",

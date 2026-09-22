@@ -625,3 +625,129 @@ string JSON direta + `updateNodeParameters` com `replace: true`, sem
 Base64/Code node). Verificado por query direta no Postgres após a
 atualização: a regra de proibição está presente e nenhum emoji restou
 no texto salvo.
+
+---
+
+## D027 — Bug crítico: mensagens sem texto (áudio/imagem) travavam a IA sem nenhuma resposta ao cliente
+
+**Contexto**: pedido do usuário pra analisar os logs de execução do n8n em
+busca de erros e inconsistências (2026-09-22), depois de um período de
+"deixar rodar" para observação em produção. Busca por execuções `error`
+nos últimos 2 dias revelou 7 falhas reais em `CORE-02`/`CORE-10` (nomes
+técnicos antigos: Message Buffer / Agent Orchestrator) que **não** eram
+dos meus próprios testes — aconteceram de verdade, incluindo depois que
+o usuário pediu pra aguardar e eu parei de mexer no sistema.
+
+**Causa raiz**: quando um cliente manda uma mensagem sem texto (áudio,
+imagem, vídeo, sticker, arquivo — comum em WhatsApp), `CORE-00` grava
+`messages.text` como string vazia (`$json.body?.content || ""`, correto
+pra esse caso — não há conteúdo textual mesmo). `CORE-02` agregava esse
+texto vazio em `aggregated_text: ""` e passava direto pro node do AI
+Agent em `CORE-10`. A API do Google Gemini **rejeita input vazio com
+erro 400** ("Request has empty input"), travando a execução inteira sem
+nenhum fallback — o cliente nunca recebe resposta alguma, e como
+`Marcar buffer consumido` já tinha rodado antes da chamada ao agente, a
+mensagem nunca é reprocessada automaticamente.
+
+**Descoberta**: confirmado em pelo menos 6 conversas reais distintas da
+Golden, desde **2026-09-20 18:02** (a mensagem mais antiga confirmada)
+até **2026-09-22 00:42** (a mais recente, capturada durante esta
+análise) — ou seja, o bug ficou ativo em produção por quase 2 dias
+inteiros sem que ninguém soubesse, porque não existe (ainda) nenhum
+alerta de erro de execução configurado (ver dívida em D017/D019 sobre
+observabilidade). Clientes afetados (nome/telefone conforme cadastro,
+pra follow-up manual se o usuário achar necessário):
+
+| Cliente | Telefone | Quando |
+|---|---|---|
+| Almeida | +55 17 99114-2194 | 2026-09-20 18:02 |
+| Nereide Maria | +55 17 99227-9606 | 2026-09-20 18:08 |
+| Valdivino | +55 17 99159-0093 | 2026-09-21 14:58 |
+| Eduardo | +55 17 98201-7172 | 2026-09-21 18:37 e 19:11 (duas mensagens de áudio seguidas, ambas travaram) |
+| Redomildo Tavares | +55 19 99982-2571 | 2026-09-22 00:42 |
+
+**Decisão**: corrigido em `CORE-02` (nó "Buscar mensagens pendentes" +
+"Agregar mensagens"). A query passou a trazer também `messages.type`, e
+o código de agregação usa um placeholder textual quando `text` está
+vazio, mapeado pelo tipo da mensagem (`audio`, `image`, `video`, `file`,
+com fallback genérico) — ex.: `"[O cliente enviou uma mensagem de audio
+- sem transcricao disponivel]"`. Isso garante que `aggregated_text`
+nunca chega vazio no `CORE-10`, e dá à IA contexto suficiente pra
+responder algo sensato (ex.: "Recebi seu áudio, mas por enquanto só
+processo texto — pode escrever, por favor?") em vez de travar. Testado
+e publicado (`activeVersionId: 10ac2cf4-1898-432d-8d9e-5b0a7d5a3c60`).
+
+**Consequência (dívida registrada)**: (1) nenhum dos 6 clientes afetados
+foi notificado automaticamente — cabe ao usuário decidir se quer fazer
+contato manual com algum deles, lista acima. (2) Esse é exatamente o
+tipo de falha que um error workflow / alerta proativo (D017 menciona
+LLM Router/fallback, mas isso é sobre outra camada — falta um alerta
+genérico de "execução falhou" pro operador, não só pro LLM) teria
+pegado em minutos, não em 2 dias — vale considerar configurar
+`errorWorkflow` nas settings dos workflows core apontando pra um
+workflow simples de notificação (WhatsApp/e-mail pro usuário) quando
+qualquer execução core falhar. (3) O mesmo padrão de "texto vazio quebra
+o LLM" pode existir em outros pontos não cobertos por este teste
+(ex.: se um tenant novo sem Golden usar outro provider de LLM com
+comportamento de erro diferente pra input vazio) — a correção em
+`CORE-02` é genérica o bastante (não é Golden-específica) pra cobrir
+todos os tenants atuais e futuros que passam por essa mesma cadeia.
+
+---
+
+## D028 — Nomes dos workflows e organização em pastas no n8n
+
+**Contexto**: usuário relatou que os nomes técnicos dos workflows
+(`CORE-00 Inbound Gateway (Chatwoot)`, `CORE-10 Agent Orchestrator`,
+etc.) e todos os 9 soltos numa pasta só do n8n dificultavam bater o
+olho e saber qual é qual — especialmente depois da discussão sobre se
+valeria a pena juntar tudo num workflow só (decidido que não, ver
+raciocínio abaixo).
+
+**Decisão**: (1) Criadas 3 subpastas dentro de "Agente de atendimento
+IA" no n8n: "Fluxo Principal (CORE)", "Ferramentas dos Agentes (TOOL)"
+e "Painel Operacional (PAINEL)", e os 9 workflows movidos para a pasta
+correspondente. (2) Nome de exibição de cada workflow reescrito em
+português simples, mantendo o prefixo técnico (`CORE-NN`/`TOOL-NN`/
+`PAINEL-NN`) que já é usado em toda a documentação e no código de
+commits — só a parte descritiva mudou:
+
+| Antes | Depois |
+|---|---|
+| CORE-00 Inbound Gateway (Chatwoot) | CORE-00 · Recebe Mensagem do Cliente (Chatwoot) |
+| CORE-01 Tenant Resolver | CORE-01 · Identifica a Empresa (Tenant) |
+| CORE-02 Message Buffer | CORE-02 · Junta Mensagens Picadas (Buffer) |
+| CORE-10 Agent Orchestrator | CORE-10 · IA Gera a Resposta (Agente) |
+| CORE-30 Output Gateway | CORE-30 · Envia Resposta ao Cliente (Chatwoot) |
+| TOOL-10 Notificar Especialista Golden | TOOL-10 · Avisar Especialista Golden (WhatsApp) |
+| PAINEL-01 Onboarding de Tenant | PAINEL-01 · Cadastrar Empresa Nova |
+| PAINEL-02 Adicionar Conhecimento | PAINEL-02 · Adicionar Regra/Conhecimento |
+| PAINEL-03 Excluir Contato | PAINEL-03 · Excluir Contato do Agente |
+
+Rename não afeta `workflowId` nem as chamadas via Execute Workflow
+(que referenciam por ID, não por nome), então não quebrou nenhuma
+conexão entre workflows — confirmado que todas as execuções continuam
+funcionando normalmente depois do rename.
+
+**Sobre juntar tudo num workflow só (rejeitado)**: `CORE-01`, `CORE-10`
+e `CORE-30` são sub-workflows reutilizados por múltiplas entradas — hoje
+só `CORE-00` (Chatwoot) chama essa cadeia, mas o desenho já prevê
+`CRM-11`/`CRM-12` (Kommo/DataCry, ainda não implementados) chamando os
+mesmos `CORE-01`/`CORE-10`/`CORE-30` sem duplicar lógica. Um workflow
+único perderia essa reutilização, e — na prática, durante a
+investigação do D027 — foi exatamente a separação por `executionId`
+entre sub-workflows que permitiu isolar a falha (áudio → texto vazio →
+Gemini 400) em 3 chamadas de ferramenta, rastreando o `executionId` de
+erro de um sub-workflow pro outro. Um workflow monolítico tornaria esse
+tipo de debug mais lento. A queixa de "muito item pra olhar" é resolvida
+pela reorganização em pastas acima e, futuramente, pelo painel externo
+(visão do pipeline sem precisar abrir o n8n).
+
+**Consequência (dívida registrada)**: os arquivos `.md` de spec em
+`n8n/core/` (títulos, texto) e os nomes de arquivo dos `.json`
+exportados (`n8n/core/CORE-00-inbound-gateway-chatwoot.json` etc.) não
+foram renomeados — só o campo `name` dentro de cada `.json` foi
+atualizado pra bater com o nome novo no n8n. Os nomes de arquivo em si
+continuam com a descrição antiga; renomear os arquivos exigiria
+atualizar todos os links/menções cruzadas no repo, não fizemos isso
+agora por ser puro custo sem ganho funcional.

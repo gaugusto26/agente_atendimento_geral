@@ -1,6 +1,6 @@
 {
   "id": "dvHN17yiFnerXqlh",
-  "name": "TOOL-10 Notificar Especialista Golden",
+  "name": "TOOL-10 · Avisar Especialista Golden (WhatsApp)",
   "active": true,
   "versionId": "65ab8369-05c5-48d2-a35a-7ba681572e65",
   "description": "Ferramenta chamada pelo Agent da Golden quando identifica uma avaliacao pronta pra agendar. Busca a conversa aberta com o WhatsApp do especialista (+5517991099157) e envia um resumo. So confirma sucesso se a mensagem realmente foi enviada.",
