@@ -100,7 +100,7 @@ atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
 | CORE-30 · Envia Resposta ao Cliente (Chatwoot) | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
 | CORE-40 · Envia Follow-ups Agendados | `Bo9VJIm7M436jpmC` | Schedule Trigger (30 min) — dispara cadências de follow-up vencidas ou cancela se o cliente já respondeu (D032) |
 | TOOL-10 · Avisar Especialista Golden (WhatsApp) | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
-| TOOL-11 · Gerar Áudio da Resposta (Gemini TTS) | `Nz8vqqYDRpJbyrsm` | Sub-workflow reutilizável — recebe uma ou mais mensagens de texto e devolve um WAV por texto via Gemini TTS; ainda **não plugado** no pipeline principal (D031) |
+| TOOL-11 · Gerar Áudio da Resposta (EdgeGo Voice) | `Nz8vqqYDRpJbyrsm` | Sub-workflow reutilizável — recebe uma ou mais mensagens de texto e devolve um áudio Opus por texto via EdgeGo Voice (D033, substituiu o Gemini TTS do D031); ainda **não plugado** no pipeline principal |
 | TOOL-12 · Agendar Follow-up | `uUeP75hDpxJsZ3nV` | AI Agent tool (CORE-10, ambos os branches) — agenda cadência de 3 lembretes + 1 encerramento quando o cliente sinaliza que vai responder depois (D032) |
 | PAINEL-01 · Cadastrar Empresa Nova | `wvIJS4f12b0AYVYt` | Formulário — cria `tenants` + `tenant_features` + `tenant_crm_config` numa submissão (D024) |
 | PAINEL-02 · Adicionar Regra/Conhecimento | `Hi1cZ6vKWfM1Eat0` | Formulário — insere regra/FAQ em `knowledge_documents` de um tenant existente (D024) |

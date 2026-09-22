@@ -951,3 +951,52 @@ e a rota de envio disparam certo, sem tocar em nenhuma conversa real.
   (30 min) estão fixos no código, não configuráveis por tenant ainda —
   generalizar só se um segundo tenant precisar de cadência diferente
   (mesmo raciocínio YAGNI do D025).
+
+## D033 — TOOL-11 trocado de Gemini TTS pra EdgeGo Voice (auto-hospedado)
+
+**Contexto**: o TOOL-11 (D031) usava a API do Gemini via HTTP cru pra
+gerar áudio, porque o node nativo do Gemini no n8n não tem operação de
+TTS. Isso deixou duas dívidas registradas: (1) integração frágil, sem
+node dedicado, sujeita a mudança de contrato da API do Google; (2) saída
+em WAV (PCM cru + cabeçalho montado na mão), não no formato Opus que o
+WhatsApp espera pra nota de voz nativa. ElevenLabs foi avaliado como
+alternativa de melhor qualidade mas adiado por exigir credencial nova.
+
+Usuário encontrou `gaugusto26/edgego-voice` — um servidor TTS próprio,
+auto-hospedado, em Go, compatível com a API da OpenAI (`/v1/audio/speech`
+e `/v1/persona/{id}/speech`), usando vozes neurais gratuitas do
+Microsoft Edge TTS. Já vinha com uma persona pré-configurada
+`whatsapp-suporte`, em formato **Opus** — resolvendo exatamente a
+segunda dívida do D031.
+
+**Decisão**: o deploy do serviço (Docker, mesma rede do n8n) foi feito
+por uma sessão externa ("Hermes", outra sessão/agente de IA do usuário,
+não esta) a partir de um prompt fornecido nesta sessão. Confirmado pelo
+usuário:
+- Serviço rodando e saudável, acessível pelo n8n em `http://edgego-voice:5050`.
+- Persona `whatsapp-suporte` gera Opus válido.
+- Autenticação Bearer obrigatória, porta 5050 não exposta à internet.
+- n8n/Postgres/Chatwoot não foram tocados.
+- A API key nunca passou pelo chat — ficou só no `.env` do serviço; o
+  usuário criou a credencial `EdgeGo Voice Bearer` (Header Auth,
+  `Authorization: Bearer <key>`) diretamente no n8n, e eu só referenciei
+  o nome/ID dela (mesma prática de segurança usada em todo o projeto).
+
+No TOOL-11: removidos os nós "Gerar audio (Gemini TTS)" e "Converter PCM
+para WAV" (que fazia o parse manual do PCM base64 e montava o cabeçalho
+WAV), substituídos por um único node HTTP Request chamando
+`POST http://edgego-voice:5050/v1/persona/whatsapp-suporte/speech` com
+`responseFormat: file` — o serviço já devolve o áudio Opus pronto, sem
+nenhuma conversão manual necessária. Um node "Aplicar metadata" (Code)
+reconstrói `tenant_id`/`conversation_id`/`text` (perdidos depois da
+chamada HTTP, mesmo padrão de cuidado já documentado no D030) e repassa
+o binário do áudio adiante.
+
+**Testado** antes de publicar: 2 textos de teste, ambos geraram Opus
+válido (~17KB cada) com metadata preservada corretamente.
+
+**Consequência**: TOOL-11 continua **não plugado** no pipeline principal
+(CORE-10/CORE-30) — só a geração ficou mais simples/robusta e resolvida
+a questão do formato. ElevenLabs não é mais necessário como alternativa,
+já que o EdgeGo Voice é gratuito e auto-hospedado. Fica pendente decidir
+quando/como integrar isso ao fluxo de resposta de fato.
