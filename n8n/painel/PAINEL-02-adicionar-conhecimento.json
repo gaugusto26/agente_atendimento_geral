@@ -2,7 +2,7 @@
   "id": "Hi1cZ6vKWfM1Eat0",
   "name": "PAINEL-02 · Adicionar Regra/Conhecimento",
   "active": true,
-  "versionId": "5f3b343f-519f-4d27-b0a3-139810934877",
+  "versionId": "00b004d3-0e19-4a29-a859-27bdded09d9d",
   "description": "Formulario interno para adicionar regras/conhecimento de negocio a um tenant existente, sem precisar de SQL manual.",
   "settings": {
     "executionOrder": "v1",

@@ -2,7 +2,7 @@
   "id": "LcCCXfkXcG3yfIeS",
   "name": "PAINEL-03 · Excluir Contato do Agente",
   "active": true,
-  "versionId": "8296d261-7f7d-450b-a2a4-0d8493318827",
+  "versionId": "14e04462-f2e3-4ec1-a6f1-889f393c6a47",
   "description": "Formulario interno para adicionar um numero de telefone a lista global de contatos que o agente nunca deve responder.",
   "settings": {
     "executionOrder": "v1",

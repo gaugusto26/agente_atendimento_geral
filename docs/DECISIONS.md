@@ -751,3 +751,31 @@ atualizado pra bater com o nome novo no n8n. Os nomes de arquivo em si
 continuam com a descrição antiga; renomear os arquivos exigiria
 atualizar todos os links/menções cruzadas no repo, não fizemos isso
 agora por ser puro custo sem ganho funcional.
+
+## D029 — Sticky notes de orientação nos workflows do n8n
+
+**Contexto**: usuário pediu orientações detalhadas em cada workflow,
+como post-its nos nós, explicando decisões e observações — pra quem
+abrir o canvas no n8n conseguir entender o fluxo sem precisar consultar
+a documentação do repo.
+
+**Decisão**: adicionadas sticky notes explicando clusters de nós,
+decisões de design e avisos de bugs críticos (ex: a nota em CORE-02
+menciona o bug D027 diretamente no nó "Agregar mensagens", pra quem
+mexer ali no futuro não reintroduzir o problema) em 8 dos 9 workflows:
+CORE-00 (5 notas), CORE-01 (1), CORE-02 (3), CORE-10 (3), CORE-30 (2),
+TOOL-10 (2), PAINEL-02 (1), PAINEL-03 (1). PAINEL-01 não recebeu nota
+nova porque já tinha uma sticky note grande e completa com o manual
+operacional inteiro. Todos publicados no n8n com sucesso.
+
+**Consequência (dívida registrada)**: o `versionId` de cada `.json`
+exportado no repo foi atualizado pra bater com a versão publicada no
+n8n (histórico de versão correto), mas o **conteúdo das sticky notes em
+si não foi replicado dentro dos arrays `nodes` dos `.json`** — os
+arquivos no repo ainda refletem só a lógica/queries/código dos nós
+funcionais, não as notas de documentação em texto. Prioridade foi
+manter o `versionId` (rastreabilidade de qual snapshot é o mais atual)
+em vez de duplicar texto de documentação em dois lugares (canvas do
+n8n + `.json` do repo), o que criaria risco de divergência. Se for
+necessário auditar o texto exato das notas no futuro, a fonte de
+verdade é o n8n (via `get_workflow_details`), não o `.json` do repo.

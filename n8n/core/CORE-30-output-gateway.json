@@ -2,7 +2,7 @@
   "id": "04QWtEuiCRQt0vov",
   "name": "CORE-30 · Envia Resposta ao Cliente (Chatwoot)",
   "active": true,
-  "versionId": "c7b5b0d5-3a26-4e59-a50d-841617a33c36",
+  "versionId": "48316289-c22b-49e0-a0cc-17cb619e21ef",
   "description": "Envia a resposta do agente de volta para a conversa de origem (Chatwoot), resolvendo base_url/account_id/conversation_id a partir do Postgres, nunca hardcoded.",
   "settings": {
     "executionOrder": "v1",

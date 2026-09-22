@@ -2,7 +2,7 @@
   "id": "tl22TbmEhvxqjpE6",
   "name": "CORE-00 · Recebe Mensagem do Cliente (Chatwoot)",
   "active": true,
-  "versionId": "ff906b22-8246-41af-85a0-c4a6b4cc5ed1",
+  "versionId": "e8baecac-34e9-490c-bb4f-0e56181fde95",
   "description": "Webhook do Chatwoot -> normaliza para Universal Message -> resolve tenant via CORE-01 -> persiste contato/conversa/mensagem de forma idempotente -> enfileira no buffer.",
   "settings": {
     "executionOrder": "v1",

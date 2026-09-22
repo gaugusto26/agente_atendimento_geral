@@ -2,7 +2,7 @@
   "id": "uBQGxhCMBQEasbLa",
   "name": "CORE-02 · Junta Mensagens Picadas (Buffer)",
   "active": true,
-  "versionId": "10ac2cf4-1898-432d-8d9e-5b0a7d5a3c60",
+  "versionId": "fc3cead1-09c5-4e18-83db-54cb36ae55b6",
   "description": "Agrega mensagens picadas (debounce de 4s), evita concorrencia entre disparos, verifica automation_status e aciona o CORE-10 Agent Orchestrator.",
   "settings": {
     "executionOrder": "v1",
