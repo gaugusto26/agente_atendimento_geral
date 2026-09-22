@@ -779,3 +779,58 @@ em vez de duplicar texto de documentação em dois lugares (canvas do
 n8n + `.json` do repo), o que criaria risco de divergência. Se for
 necessário auditar o texto exato das notas no futuro, a fonte de
 verdade é o n8n (via `get_workflow_details`), não o `.json` do repo.
+
+## D030 — Transcrição real de áudio (Google Gemini) no CORE-00
+
+**Contexto**: mesmo depois do D027 (fix do bug crítico que travava a
+IA em mensagens sem texto), áudios de clientes continuavam sem ser
+efetivamente entendidos — o CORE-02 só substituía o texto vazio por um
+placeholder genérico ("[O cliente enviou uma mensagem de áudio - sem
+transcrição disponível]"), então a IA nunca sabia o que o cliente
+realmente falou no áudio. Usuário pediu pra usar um fluxo pessoal dele
+de transcrição de áudio (`WhatsApp - Transcrição de áudios GUI - 7622`,
+fora deste projeto, baseado em Wuzapi + Google Gemini) como referência
+pra resolver isso de verdade.
+
+**Decisão**: adicionado no `CORE-00`, logo após confirmar que a
+mensagem é de entrada válida (já passou pelos filtros de grupo/contato
+excluído/tenant resolvido — evita gastar chamada de API à toa), um
+branch condicional `É áudio?` (`message_type == audio`):
+1. **Baixar áudio (Chatwoot)** — HTTP Request baixa o arquivo original
+   via `data_url` do attachment do webhook do Chatwoot (`responseFormat:
+   file`).
+2. **Transcrever áudio (Gemini)** — Google Gemini (`resource: audio,
+   operation: transcribe`, `inputType: binary`), usando a credencial
+   genérica `Google Gemini(PaLM) Api gui` (não a key exclusiva da
+   Golden, já que o CORE-00 atende todos os tenants).
+3. **Aplicar transcrição** — Code node reconstrói o item com os dados
+   do tenant (`CORE-01 Tenant Resolver`) + `transcribed_text`.
+
+`Montar Universal Message` foi ajustado pra usar
+`tenant.transcribed_text || source.message_text` no campo
+`message.text` — ou seja, a transcrição tem prioridade, mas cai pro
+texto original (vazio, pra áudio) se não houver transcrição.
+
+Adaptação em relação ao fluxo de referência do usuário: **a transcrição
+não é reenviada como mensagem ao cliente** (o fluxo original mandava de
+volta via WhatsApp com um prefixo "⚡️ Transcrição"). Aqui ela só
+alimenta o entendimento da IA internamente — o cliente continua vendo
+só a resposta normal do agente, igual hoje.
+
+**Testado**: validado isoladamente com um workflow temporário (áudio
+público de teste, arquivo `brooklyn.flac` da Google Cloud), confirmando
+o formato real de saída do node (`content.parts[0].text`, não `text`
+puro) e que a transcrição funciona fim a fim antes de publicar no
+CORE-00 de produção.
+
+**Consequência (rede de segurança preservada)**: os 2 nós novos têm
+`onError: continueRegularOutput`. Se o download ou a transcrição
+falhar por qualquer motivo (API fora do ar, `data_url` inválida etc.),
+a mensagem segue com texto vazio e cai no placeholder do D027 — nunca
+trava o fluxo nem reintroduz o bug crítico anterior. O placeholder do
+D027 no CORE-02 continua existindo como último fallback (áudio sem
+transcrição bem-sucedida, imagem, vídeo, arquivo).
+
+**Pendência**: envio de áudio (texto→voz) na resposta da IA ainda não
+existe — ficou combinado avaliar ElevenLabs (melhor qualidade de voz em
+PT-BR) quando essa etapa for priorizada.

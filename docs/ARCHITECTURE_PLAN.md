@@ -253,6 +253,18 @@ HMAC do webhook do Chatwoot.
   Nenhum alerta automático existia pra detectar isso mais cedo — falta
   configurar `errorWorkflow` nos workflows core pra notificar o operador
   quando uma execução falhar (dívida nova).
+- **Transcrição real de áudio (D030)**, adicionada em 2026-09-22 no
+  `CORE-00`: mensagens de voz agora são baixadas do Chatwoot e
+  transcritas via Google Gemini (`resource: audio, operation:
+  transcribe`) antes de montar a Universal Message, então o cliente que
+  manda áudio passa a ser efetivamente entendido pela IA (antes, mesmo
+  depois do D027, o áudio só virava um placeholder genérico tipo "[O
+  cliente enviou uma mensagem de áudio]"). O placeholder do D027
+  continua existindo como fallback de segurança — se o download ou a
+  transcrição falhar (`onError: continueRegularOutput` nos dois nós), a
+  mensagem segue com texto vazio e cai no placeholder, nunca trava o
+  fluxo. A transcrição em si não é reenviada ao cliente, só alimenta o
+  entendimento da IA.
 - **Credencial de LLM isolada por tenant só existe para a Golden** (D025)
   — implementado como ramificação manual no CORE-10, não como sistema
   genérico. Se mais tenants precisarem, vale generalizar via
