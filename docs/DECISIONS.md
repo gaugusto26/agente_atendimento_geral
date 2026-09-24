@@ -176,6 +176,20 @@ limit), o Agent Orchestrator falha sem fallback — aceitável para a Fase 2,
 mas `LLM-00 Router` (Seção 11 do briefing original) continua como trabalho
 pendente antes de qualquer uso além de teste/piloto.
 
+**Atualização (2026-09-24) — mitigação parcial, `LLM-00 Router` continua pendente**:
+análise de execuções com erro (22 a 24/09) achou 3 casos reais de cliente da
+Golden sem nenhuma resposta por `[503] This model is currently experiencing
+high demand` do Gemini — sobrecarga momentânea do provider, não billing/rate
+limit, mas o efeito é o mesmo previsto acima: sem retry, a cadeia falha e o
+cliente não recebe nada. Usuário ativou `Retry On Fail` diretamente no n8n
+nos nós "Assistente" e "Assistente (Golden)" do `CORE-10` (mitiga a maioria
+dos 503 transitórios, sem precisar de um segundo provider). **Não substitui**
+o `LLM-00 Router`: uma indisponibilidade prolongada do Gemini (billing,
+rate limit, outage real) continua derrubando o agente inteiro sem
+degradação — retry só ajuda em falhas curtas que se resolvem sozinhas em
+segundos. `pnKnvq3lf1KvjSRz` publicado (`activeVersionId:
+69afb3fa-b27c-4895-b41e-1c267cd4f6e9`).
+
 ---
 
 ## D018 — Memória do agente usa tabela própria do n8n, não a tabela `messages` do Core
