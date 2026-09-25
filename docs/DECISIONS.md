@@ -1146,3 +1146,77 @@ resposta em texto (fallback), nunca fica sem resposta nenhuma. `CORE-02`
 `a93f257b-86ed-4ec6-a8e7-32ed256b91e0`) e `CORE-30`
 (`04QWtEuiCRQt0vov`, versão `1637d7a2-ca52-40b3-9a48-2ebe43a2a8ef`)
 publicados.
+
+---
+
+## D036 — LLM Router: segundo modelo Gemini como fallback via error-output branching
+
+**Contexto**: fecha a dívida do D017 (sem LLM Router/fallback), agravada
+pelos 3 incidentes reais documentados na atualização de 2026-09-24 (Gemini
+503 "high demand", cliente da Golden sem resposta). O retry automático
+ativado naquele dia (`retryOnFail`) mitiga falhas curtas, mas não cobre
+uma indisponibilidade do modelo primário que persista por vários segundos
+ou minutos. Usuário decidiu o escopo: fallback pra um **segundo modelo
+Gemini** (mesmo provider, sem credencial nova) e valendo pra **todos os
+tenants** (não só a Golden), implementado de forma genérica no `CORE-10`.
+
+**Tentativa descartada**: a documentação do SDK do n8n (`get_node_types`)
+descreve o parâmetro `model` do nó AI Agent como
+`LanguageModelInstance | LanguageModelInstance[]`, sugerindo suporte
+nativo a múltiplos Chat Models conectados na mesma entrada (com
+`needsFallback: true` como toggle). Na prática, **essa instância do n8n
+rejeita isso**: conectar um segundo `ai_languageModel` no mesmo Agent
+(mesmo em índices diferentes) gera o aviso de validação
+`DUPLICATE_SUBNODE_CONNECTION` ("this input accepts only one"). Tentativa
+revertida antes de publicar qualquer coisa quebrada.
+
+**Decisão**: fallback via **error-output branching**, o mesmo padrão já
+usado em outros pontos do projeto (ex.: download/transcrição de áudio no
+D030, `onError: continueRegularOutput`) — aqui com `onError:
+continueErrorOutput`, que dá ao nó uma segunda saída (erro) em vez de
+parar o workflow:
+
+1. `Assistente` e `Assistente (Golden)` ganharam `onError:
+   continueErrorOutput` (além do `retryOnFail` já ativo — primeiro tenta
+   de novo automaticamente, só cai pro fallback se o retry também
+   falhar).
+2. Dois nós **novos**, duplicando cada Agent original mas com modelo
+   diferente: **"Assistente (Fallback)"** e **"Assistente (Golden
+   Fallback)"** — mesmo `systemMessage`/prompt, mesma memória
+   (`Memoria da conversa`, reconectada também nesses dois) e mesmas
+   tools (`Agendar Follow-up Tool` nos dois; `Notificar Especialista
+   Tool` só no fallback da Golden, espelhando a regra D025/D026 de que
+   só o branch Golden tem acesso a essa ferramenta).
+3. Dois Chat Model novos — **"Google Gemini Chat Model (Fallback)"** e
+   **"Google Gemini Chat Model (Golden Fallback)"** — modelo
+   `models/gemini-2.5-flash` (diferente do primário
+   `gemini-3.1-flash-lite`, pra reduzir a chance de os dois passarem
+   pelo mesmo incidente de sobrecarga), usando a mesma credencial do
+   branch correspondente (compartilhada ou `GOLDEN OURO GEMINI API
+   KEY`) — preserva o isolamento de quota do D025, sem credencial nova.
+4. A saída de erro (índice 1) de `Assistente`/`Assistente (Golden)`
+   alimenta o Agent de fallback correspondente; ambos os fallbacks
+   convergem no mesmo `Salvar resposta como mensagem` que já recebia os
+   dois branches originais — nenhuma mudança downstream (CORE-30,
+   roteamento de áudio do D035) foi necessária.
+
+**Testado antes de publicar**: quebrado propositalmente o `modelName` do
+"Google Gemini Chat Model (Golden)" pra um valor inválido, criados
+`contact`/`conversation` sintéticos reais no tenant da Golden (mesmo
+padrão de teste seguro de sempre), e executado o `CORE-10` de ponta a
+ponta via workflow utilitário temporário. Confirmado nos dados da
+execução: `Assistente (Golden)` foi pra saída de erro, `Assistente
+(Golden Fallback)` gerou a resposta normalmente ("Ignorei.", coerente com
+o texto de teste), e `Salvar resposta como mensagem` gravou certinho.
+Modelo primário restaurado, dados sintéticos apagados, e os 3 workflows
+utilitários (setup/teste/cleanup) arquivados depois de usados.
+
+**Consequência**: cobre o cenário mais comum de indisponibilidade
+(sobrecarga momentânea de um modelo específico do Gemini). **Não** cobre
+uma indisponibilidade da conta Google inteira (billing, API key
+revogada, outage geral do Gemini) — os dois modelos usam a mesma
+credencial por branch, então uma falha na credencial em si ainda derruba
+os dois. Um router cross-provider de verdade (ex.: OpenAI como terceira
+opção, hoje sem crédito — D017) continua como trabalho pendente se esse
+cenário se mostrar necessário. `CORE-10` (`pnKnvq3lf1KvjSRz`) publicado,
+`activeVersionId: 53a32cda-92a8-4dde-a8ee-a7d7a94765d9`.

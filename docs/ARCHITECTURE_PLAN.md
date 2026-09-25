@@ -96,7 +96,7 @@ atualizados em 2026-09-22 pra ficarem glanceable direto na lista do n8n
 | CORE-00 · Recebe Mensagem do Cliente (Chatwoot) | `tl22TbmEhvxqjpE6` | Webhook → Universal Message → persistência idempotente → enfileira buffer |
 | CORE-01 · Identifica a Empresa (Tenant) | `SORheYP8kFYlvQh1` | Resolve `tenant_id` a partir de provider/account/inbox |
 | CORE-02 · Junta Mensagens Picadas (Buffer) | `uBQGxhCMBQEasbLa` | Debounce 4s, confirma mensagem mais recente, checa `AI_ACTIVE`, agrega |
-| CORE-10 · IA Gera a Resposta (Agente) | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id` |
+| CORE-10 · IA Gera a Resposta (Agente) | `pnKnvq3lf1KvjSRz` | AI Agent (Gemini) + memória Postgres por sessão `tenant_id:conversation_id`, com retry + fallback pra um segundo modelo Gemini (D036) |
 | CORE-30 · Envia Resposta ao Cliente (Chatwoot) | `04QWtEuiCRQt0vov` | Resolve base_url/account/conversation no Postgres, envia resposta ao Chatwoot |
 | CORE-40 · Envia Follow-ups Agendados | `Bo9VJIm7M436jpmC` | Schedule Trigger (30 min) — dispara cadências de follow-up vencidas ou cancela se o cliente já respondeu (D032) |
 | TOOL-10 · Avisar Especialista Golden (WhatsApp) | `dvHN17yiFnerXqlh` | AI Agent tool (só branch Golden do CORE-10) — avisa especialista humano via WhatsApp quando há avaliação pronta pra agendar (D026) |
@@ -232,9 +232,13 @@ HMAC do webhook do Chatwoot.
   Aceito conscientemente por D011, exige disciplina operacional (nomear
   bem cada `versionName`/`versionDescription` ao publicar, e lembrar de
   re-exportar o `.json` depois de mudanças relevantes).
-- **Sem LLM Router/fallback** (D017): uma indisponibilidade do único
-  provider configurado (billing, rate limit) derruba o agente inteiro sem
-  degradação graciosa.
+- **LLM Router parcial** (D017/D036): `CORE-10` tem retry automático +
+  fallback pra um segundo modelo Gemini (`gemini-2.5-flash`) via
+  error-output branching, cobrindo sobrecarga momentânea de um modelo
+  específico. Continua **sem** fallback cross-provider — uma
+  indisponibilidade da própria conta/credencial Google (billing, rate
+  limit, outage geral) ainda derruba o agente inteiro, já que os dois
+  modelos usam a mesma credencial por branch.
 - **HMAC do Chatwoot não verificado** (D019): qualquer requisição POST no
   path do webhook é aceita como se fosse do Chatwoot.
 - **Conhecimento injetado sem limite de tamanho** (D020): todo o conteúdo
